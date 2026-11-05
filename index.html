@@ -142,7 +142,8 @@ tr.off td{opacity:.5}
 .sh-car{gap:8px;border-bottom:2px solid #3aa0c8;padding-bottom:3px}
 .sh-car .cn{border:1.5px solid #3aa0c8;background:#e8f6fb;font-weight:700;font-size:15px;padding:2px 10px;cursor:pointer}
 .sh-car .cp{font-size:12px;color:#555;background:#fdf3d4;border-radius:4px;padding:1px 7px;cursor:pointer}
-.sh-car .cc{margin-left:auto;display:inline-flex;align-items:baseline;gap:3px;background:#1f6b4f;color:#fff;border-radius:6px;padding:2px 12px;font-size:13px;font-weight:500}
+.sh-car .cc{margin-left:auto;display:inline-flex;align-items:baseline;gap:3px;background:#1f8a4c;color:#fff;border-radius:6px;padding:2px 12px;font-size:13px;font-weight:500}
+.sh-car .cc.pm{background:#e0518f}
 .sh-car .cc b{font-size:20px;font-weight:700;line-height:1.2}
 .sh-car .cc small{font-size:11.5px;opacity:.85;margin-left:6px}
 .sh-run .rl b,.sh-run .rl2 b{cursor:pointer}
@@ -165,7 +166,9 @@ tr.off td{opacity:.5}
 .bx .in{border:1px solid #444;position:relative;background:#fff}
 .bx .dn{position:absolute;top:-15px;left:0;right:0;text-align:center;font-size:10.5px;font-weight:500}
 .bx .t{border-bottom:1px solid #444;text-align:center;font-size:12px;font-weight:700;height:19px;line-height:18px}
-.bx .t.hl{background:#ffff00}
+.bx .t.hl,.bx .t.hl-y{background:#ffff00}
+.bx .t.hl-b{background:#9bd7ff}
+.hlpick{display:flex;gap:4px;flex:1}.hp{display:flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);font-size:13px;width:auto!important;color:var(--ink)!important}.hp input{margin:0}.hp-y{background:#ffff66}.hp-b{background:#bfe6ff}
 .bx .n{text-align:center;font-size:14px;font-weight:700;height:24px;line-height:24px;border-bottom:1px dashed #888;white-space:nowrap;overflow:hidden}
 .bx .p{text-align:center;font-size:10.5px;line-height:20px;height:20px;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:clip;letter-spacing:-.2px}
 .bx .c{text-align:center;font-size:9.5px;color:#d00;font-weight:700;margin-top:3px;line-height:1.25;word-break:keep-all}
@@ -217,9 +220,23 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
   .sheet{box-shadow:none;margin:0 auto;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .bx.sel .in{outline:none}.crewl i{visibility:hidden}
 }
-@media(max-width:600px){
-  main{padding:10px}.grid,.side{grid-template-columns:1fr}
-  .hbar h1{font-size:15px}
+@media(max-width:760px){
+  body{font-size:14px}
+  .hbar{padding:6px 8px;gap:6px}.hbar h1{display:none}
+  nav{flex:1 1 100%;order:1}nav button{padding:6px 8px;font-size:13px}
+  .hdbtns{order:2;flex:1}.hdbtns button{padding:6px 9px;font-size:12px}
+  #conn{display:none}#logout{order:3;padding:5px 9px;font-size:12px}
+  main{padding:8px}
+  .toolbar{gap:6px}.datebox input{font-size:14px;width:118px}.dow{font-size:14px}
+  .seg button{padding:7px 10px;font-size:13px}
+  .srch{flex:1 1 100%}.srch input{width:100%}
+  #srchRes{min-width:0;width:100%}
+  .toolbar>button{padding:6px 9px;font-size:12.5px}
+  .sheetwrap{padding:4px;border-radius:8px;overflow:hidden}
+  .side,.grid{grid-template-columns:1fr}
+  #pop{left:8px!important;right:8px;width:auto!important;top:auto!important;bottom:8px;max-height:70vh;overflow:auto}
+  .vgrid{grid-template-columns:1fr}
+  .login-box{padding:24px 18px}
 }
 </style>
 </head>
@@ -304,7 +321,7 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2200)}
 function cfg(){return config||DEFAULT_CONFIG}
 function vehicles(){return cfg().vehicles||[]}
-function vehiclesFor(S){const vs=vehicles(),ord=cfg()['order'+(S==='am'?'Am':'Pm')]||[];const r=v=>{const i=ord.indexOf(v.id);return i<0?999:i};return [...vs].sort((a,b)=>r(a)-r(b))}
+function vehiclesFor(S){const vs=vehicles(),ord=cfg()['order'+CK(S)]||cfg()['order'+CAP[S]]||[];const r=v=>{const i=ord.indexOf(v.id);return i<0?999:i};return [...vs].sort((a,b)=>r(a)-r(b))}
 const isTime=t=>/^\d{1,2}:\d{2}$/.test(String(t||'').trim());
 const runLabel=t=>isTime(t)?t+' 출발':t;
 function vById(id){return vehicles().find(v=>v.id===id)}
@@ -334,15 +351,15 @@ async function flush(path){
 }
 
 // ---------- 출석 / 배차 계산 ----------
-function runKeys(S){const ks=[];vehiclesFor(S).forEach(v=>(v[S]||[]).forEach((t,i)=>ks.push(v.id+'#'+i)));return ks}
-function keyInfo(S,k){const [vid,i]=k.split('#');const v=vById(vid);return v?{v,idx:+i,time:(v[S]||[])[+i]||''}:null}
-function keyLabel(S,k){const x=keyInfo(S,k);return x?`${x.v.name} ${x.idx+1}회차${x.time?'('+x.time+')':''}`:k}
+function runKeys(S){const ks=[];vehiclesFor(S).forEach(v=>(v[SK(S)]||[]).forEach((t,i)=>ks.push(v.id+'#'+i)));return ks}
+function keyInfo(S,k){const [vid,i]=k.split('#');const v=vById(vid);return v?{v,idx:+i,time:(v[SK(S)]||[])[+i]||''}:null}
+function keyLabel(S,k){const x=keyInfo(S,k);return x?`${vname(x.v,S)} ${x.idx+1}회차${x.time?'('+x.time+')':''}`:k}
 function attending(date,dd){
   const w=wd(date), ab=new Set((dd&&dd.absent)||[]), ex=new Set((dd&&dd.extra)||[]);
   return eldersArr().filter(e=>e.status!=='중지' && (!e.start||e.start<=date) && ((e.days||[]).includes(w)||ex.has(e.id)) && !ab.has(e.id));
 }
 function prefRun(e,S,v){
-  const want=S==='am'?e.wantAm:e.wantPm, ts=v[S]||[]; if(!want||!ts.length) return -1;
+  const want=S==='am'?e.wantAm:e.wantPm, ts=v[SK(S)]||[]; if(!want||!ts.length) return -1;
   let best=0,bd=1e9; ts.forEach((t,i)=>{const d=Math.abs(toMin(t)-toMin(want));if(d<bd){bd=d;best=i}});return best;
 }
 function toMin(t){const m=/(\d+):(\d+)/.exec(t||'');return m?(+m[1])*60+(+m[2]):0}
@@ -371,18 +388,21 @@ function computeSession(S,dd,att,amRes){
     return {lists,unassigned:att.filter(e=>!placed.has(e.id)).map(e=>e.id),saved:true};
   }
   // 1) 기본표
-  const withDef=att.filter(e=>e.def&&e.def[S]&&lists[e.def[S].k]).sort((a,b)=>(a.def[S].o||0)-(b.def[S].o||0));
-  for(const e of withDef){lists[e.def[S].k].push(e.id);placed.add(e.id)}
+  const K=SK(S);
+  const withDef=att.filter(e=>e.def&&e.def[K]&&lists[e.def[K].k]).sort((a,b)=>(a.def[K].o||0)-(b.def[K].o||0));
+  for(const e of withDef){lists[e.def[K].k].push(e.id);placed.add(e.id)}
+  // 토요일 기본표에 있지만 이 시간대엔 안 타는 어르신은 자동배치하지 않음
+  const skipSat=id=>{const e=elders[id];return K!==S&&e&&e.def&&(e.def.satam||e.def.satpm)&&!e.def[K]};
   // 2) 오후: 오전 배차를 역순으로 따라감
   if(S==='pm'&&amRes){
     for(const k in amRes.lists){
       const [vid,i]=k.split('#'); const v=vById(vid); if(!v) continue;
-      const pk=vid+'#'+Math.min(+i,(v.pm||[]).length-1); if(!lists[pk]) continue;
-      [...amRes.lists[k]].reverse().forEach(id=>{if(!placed.has(id)&&attIds.has(id)&&lists[pk].length<v.cap){lists[pk].push(id);placed.add(id)}});
+      const pk=vid+'#'+Math.min(+i,(v[SK('pm')]||[]).length-1); if(!lists[pk]) continue;
+      [...amRes.lists[k]].reverse().forEach(id=>{if(!placed.has(id)&&attIds.has(id)&&!skipSat(id)&&lists[pk].length<v.cap){lists[pk].push(id);placed.add(id)}});
     }
   }
   // 3) 나머지는 동네별 자동배치
-  const rem=att.filter(e=>!placed.has(e.id));
+  const rem=att.filter(e=>!placed.has(e.id)&&!skipSat(e.id));
   const left=autoFill(S,lists,rem);
   return {lists,unassigned:left.map(e=>e.id),saved:false};
 }
@@ -392,8 +412,9 @@ function computeDay(){
   const pm=computeSession('pm',dayDoc,att,am);
   return {att,am,pm};
 }
-function timeOf(S,id){const t=dayDoc&&dayDoc.times&&dayDoc.times[S]&&dayDoc.times[S][id];if(t!=null&&t!=='')return t;const e=elders[id];return (e&&e.def&&e.def[S]&&e.def[S].t)||''}
-function isHl(S,id){return !!(dayDoc&&dayDoc.hl&&(dayDoc.hl[S]||[]).includes(id))}
+function timeOf(S,id){const t=dayDoc&&dayDoc.times&&dayDoc.times[S]&&dayDoc.times[S][id];if(t!=null&&t!=='')return t;const e=elders[id],K=SK(S);return (e&&e.def&&e.def[K]&&e.def[K].t)||''}
+function hlOf(S,id){const e=elders[id];const c=e&&e.hl&&e.hl[SK(S)];if(c)return c;return (dayDoc&&dayDoc.hl&&(dayDoc.hl[S]||[]).includes(id))?'y':''}
+function isHl(S,id){return !!hlOf(S,id)}
 function daysLabel(ds){ds=[...(ds||[])].sort();const k=ds.join('');if(k==='12345')return '';if(k==='123456')return '월~토';if(k==='23456')return '화~토';
   const all=[1,2,3,4,5];if(ds.every(d=>d>=1&&d<=5)&&ds.length===4){const miss=all.find(d=>!ds.includes(d));return DOW[miss]+'X'}
   return ds.map(d=>DOW[d]).join('')}
@@ -405,11 +426,15 @@ function shortPlace(s){
   if(m&&/[가-힣A-Za-z]{2,}/.test(m[4])) s=m[4];
   return s.replace(/\s*-\s*/g,'-').trim();
 }
-const CAP={am:'Am',pm:'Pm'};
+const CAP={am:'Am',pm:'Pm',satam:'SatAm',satpm:'SatPm'};
+// 토요일은 별도 기본표(satam/satpm), 평일은 am/pm
+function SK(S,date=curDate){return wd(date)===6?'sat'+S:S}
+function CK(S){return CAP[SK(S)]}
+function vname(v,S){return (wd(curDate)===6&&v['name'+CK(S)])||v.name}
 function crewOf(v,S=session){
   const c=(dayDoc&&dayDoc.crew&&dayDoc.crew[S]&&dayDoc.crew[S][v.id])||{};
-  const dd=v['driver'+CAP[S]], dh=v['helper'+CAP[S]];
-  return {driver:c.driver??(dd!=null&&dd!==''?dd:(v.driver||'')),helper:c.helper??(dh!=null&&dh!==''?dh:(v.helper||''))};
+  const dd=v['driver'+CK(S)], dh=v['helper'+CK(S)];
+  const sat=wd(curDate)===6;return {driver:c.driver??(dd!=null&&dd!==''?dd:(sat?'':(v.driver||''))),helper:c.helper??(dh!=null&&dh!==''?dh:(sat?'':(v.helper||'')))};
 }
 // "1+3/2+4", "1(4)/2(4)" → [[{i,wrap}],...]  (회차 번호는 1부터)
 function parseLayout(str,n){
@@ -451,7 +476,8 @@ function unAbsent(n,id){
   n.absent=n.absent.filter(x=>x!==id); const pv=(n.prev&&n.prev[id])||{}, e=elders[id]||{};
   for(const S of ['am','pm']){
     let k=pv[S]&&pv[S].k, i=pv[S]?pv[S].i:null;
-    if(!k&&e.def&&e.def[S]){k=e.def[S].k;const o=e.def[S].o;const L=n[S][k]||[];i=L.filter(x=>{const d=elders[x]&&elders[x].def&&elders[x].def[S];return d&&d.k===k&&d.o<o}).length}
+    const K=SK(S);
+    if(!k&&e.def&&e.def[K]){k=e.def[K].k;const o=e.def[K].o;const L=n[S][k]||[];i=L.filter(x=>{const d=elders[x]&&elders[x].def&&elders[x].def[K];return d&&d.k===k&&d.o<o}).length}
     if(!k||!n[S][k]) continue; const L=n[S][k]; if(L.includes(id)) continue;
     L.splice(Math.min(i??L.length,L.length),0,id);
   }
@@ -531,29 +557,30 @@ function renderSheet(R,att){
   const [y,m,d]=curDate.split('-');
   let h=`<div class="sheet" id="sheet"><div class="sh-top"><span class="sh-lbl">출발순서</span>
     <span class="sh-date">${y}년 ${m}월 ${d}일(${DOW[w]})</span>
-    <span class="sh-box c1 ${S}">${w===6?'토요일':w===0?'일요일':'평일'}</span><span class="sh-box c2 ${S}">${S==='am'?'오 전':'오 후'}</span><span class="sh-box tot ${S}">${placedTotal}</span></div>`;
+    <span class="sh-box c1 ${S}">${w===6||w===0?'주말':'평일'}</span><span class="sh-box c2 ${S}">${S==='am'?'오 전':'오 후'}</span><span class="sh-box tot ${S}">${placedTotal}</span></div>`;
   for(const v of vehiclesFor(S)){
-    const runs=v[S]||[]; if(!runs.length) continue;
+    const runs=v[SK(S)]||[]; if(!runs.length) continue;
     const c=crewOf(v), crew=[c.driver,v.assistant?c.helper:''].filter(Boolean).join('/');
     let cnt=0; runs.forEach((t,i)=>cnt+=(R.lists[v.id+'#'+i]||[]).length);
-    const ph=v['phone'+CAP[S]]??v.phone??'';
+    const ph=v['phone'+CK(S)]??(wd(curDate)===6?'':(v.phone??''));
     const perRun=runs.map((t,i)=>(R.lists[v.id+'#'+i]||[]).length);
-    h+=`<div class="sh-car"><span class="cn" data-car="${v.id}" title="눌러서 수정">${esc(v.name)}${v.plate?'('+esc(v.plate)+')':''}</span>${ph?`<span class="cp" data-car="${v.id}" title="눌러서 수정">${esc(ph)}</span>`:''}<span class="cc">탑승 <b>${cnt}</b>명${runs.length>1?`<small>(${perRun.join('+')})</small>`:''}</span></div>`;
+    h+=`<div class="sh-car"><span class="cn" data-car="${v.id}" title="눌러서 수정">${esc(vname(v,S))}${v.plate?'('+esc(v.plate)+')':''}</span>${ph?`<span class="cp" data-car="${v.id}" title="눌러서 수정">${esc(ph)}</span>`:''}<span class="cc ${S}">탑승 <b>${cnt}</b>명${runs.length>1?`<small>(${perRun.join('+')})</small>`:''}</span></div>`;
     const buildItems=k=>{
       const items=(R.lists[k]||[]).map(id=>({id,st:''}));
       // 결석·첫 이용 전 어르신은 기본 자리에 표시 (빗금/흐리게)
       const ex=new Set((dayDoc&&dayDoc.extra)||[]);
       const stOf=e=>ab.has(e.id)?'ab':(e.status==='중지'?'':(e.start&&e.start>curDate&&(e.days||[]).includes(w))?'ns':(!(e.days||[]).includes(w)&&!ex.has(e.id))?'off':'');
-      const extras=eldersArr().filter(e=>e.def&&e.def[S]&&e.def[S].k===k&&!items.find(x=>x.id===e.id)&&stOf(e));
+      const K=SK(S);
+      const extras=eldersArr().filter(e=>e.def&&e.def[K]&&e.def[K].k===k&&!items.find(x=>x.id===e.id)&&stOf(e));
       for(const e of extras){
-        const o=e.def[S].o; let at=items.findIndex(x=>{const xe=elders[x.id];return xe&&xe.def&&xe.def[S]&&xe.def[S].k===k&&xe.def[S].o>o});
+        const o=e.def[K].o; let at=items.findIndex(x=>{const xe=elders[x.id];return xe&&xe.def&&xe.def[K]&&xe.def[K].k===k&&xe.def[K].o>o});
         if(at<0) at=items.length; items.splice(at,0,{id:e.id,st:stOf(e)});
       }
       return items;
     };
     // 줄 나누기: 한 줄에 7칸. 두 번째 회차부터는 출발 표시 1칸을 차지하고 오른쪽에 붙음
     const rows=[];
-    for(const row of parseLayout(v['layout'+CAP[S]],runs.length)){
+    for(const row of parseLayout(v['layout'+CK(S)],runs.length)){
       let cur=[],used=0;
       for(const sg of row){
         const items=buildItems(v.id+'#'+sg.i), wdt=Math.max(1,Math.min(items.length||1,sg.wrap));
@@ -581,9 +608,9 @@ function renderSheet(R,att){
 }
 function boxHtml(id,st,k,pos=''){
   const e=elders[id]; if(!e) return '';
-  const S=session, t=timeOf(S,id), dl=daysLabel(e.days), dd=(e.def&&e.def[S])||{}, pl=dd.p||e.place||e.address||'', ct=dd.c||e.contact||'';
+  const S=session, t=timeOf(S,id), dl=daysLabel(e.days), dd=(e.def&&e.def[SK(S)])||{}, pl=dd.p||e.place||e.address||'', ct=dd.c||e.contact||'';
   return `<div class="bx ${st} ${selId===id?'sel':''}" style="${pos}" data-bx="${id}" data-k="${k}" data-st="${st}">
-    <div class="in">${st==='ab'||st==='off'?'<svg class="xl" viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="0" y1="100" x2="100" y2="0" stroke="#e00" stroke-width="2.2"/></svg>':''}<div class="t ${isHl(S,id)?'hl':''}">${esc(t||' ')}</div><div class="n">${esc(e.name)}</div><div class="p">${esc(shortPlace(pl))}</div></div>
+    <div class="in">${st==='ab'||st==='off'?'<svg class="xl" viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="0" y1="100" x2="100" y2="0" stroke="#e00" stroke-width="2.2"/></svg>':''}<div class="t ${hlOf(S,id)?'hl-'+hlOf(S,id):''}">${esc(t||' ')}</div><div class="n">${esc(e.name)}</div><div class="p">${esc(shortPlace(pl))}</div></div>
     ${ct?`<div class="c">${esc(ct)}</div>`:''}</div>`;
 }
 function closePop(){const p0=document.getElementById('pop');if(p0){const a=document.activeElement;if(a&&p0.contains(a))a.blur()}const p=document.getElementById('pop');if(p&&p.isConnected)try{p.remove()}catch(e){}if(selId){selId=null;document.querySelectorAll('.bx.sel').forEach(b=>b.classList.remove('sel'))}}
@@ -597,10 +624,11 @@ function openPop(bx){
   if(st==='ab') h+=`<p class="hint">오늘 결석으로 표시돼 있어요.</p><div class="btns"><button class="primary" data-a="unab">출석으로 되돌리기</button><button data-a="x">닫기</button></div>`;
   else if(st==='off') h+=`<p class="hint">${DOW[wd(curDate)]}요일은 이용 요일이 아니라 결석으로 표시돼요. (이용 요일: ${esc((e.days||[]).map(d=>DOW[d]).join(''))})</p><div class="btns"><button class="primary" data-a="extra">오늘만 출석</button><button data-a="x">닫기</button></div>`;
   else if(st==='ns') h+=`<p class="hint">첫 이용일(${esc(e.start)}) 전이라 흐리게 표시됩니다.</p><div class="btns"><button data-a="x">닫기</button></div>`;
-  else h+=`<div class="r"><label>시간</label><input id="pT" value="${esc(timeOf(S,id))}" placeholder="18:20"><label style="width:auto"><input type="checkbox" id="pH" ${isHl(S,id)?'checked':''}> 노랑</label></div>
+  else h+=`<div class="r"><label>시간</label><input id="pT" value="${esc(timeOf(S,id))}" placeholder="18:20"></div>
+    <div class="r"><label>강조</label><span class="hlpick">${[['','없음'],['y','노랑'],['b','하늘']].map(([c,l])=>`<label class="hp hp-${c||'n'}"><input type="radio" name="pH" value="${c}" ${(hlOf(S,id)===c)?'checked':''}>${l}</label>`).join('')}</span></div>
     <div class="r"><label>이름</label><input id="pN" value="${esc(e.name)}"></div>
-    <div class="r"><label>주소</label><input id="pP" value="${esc((e.def&&e.def[S]&&e.def[S].p)||e.place||e.address||'')}"></div>
-    <div class="r"><label>연락처</label><input id="pC" value="${esc((e.def&&e.def[S]&&e.def[S].c)||e.contact||'')}"></div>
+    <div class="r"><label>주소</label><input id="pP" value="${esc((e.def&&e.def[SK(S)]&&e.def[SK(S)].p)||e.place||e.address||'')}"></div>
+    <div class="r"><label>연락처</label><input id="pC" value="${esc((e.def&&e.def[SK(S)]&&e.def[SK(S)].c)||e.contact||'')}"></div>
     <div class="r"><label>차량</label><select id="pK">${keys.map(x=>`<option value="${x}" ${x===k?'selected':''}>${esc(keyLabel(S,x))}</option>`).join('')}<option value="__un" ${k==='__un'?'selected':''}>미배정</option></select></div>
     <div class="btns">${k!=='__un'?`<button data-a="l">◀ 앞으로</button><button data-a="r">뒤로 ▶</button>`:''}<button data-a="ab" style="color:var(--warn)">결석 처리</button><button data-a="x">닫기</button></div>`;
   p.innerHTML=h; document.body.appendChild(p);
@@ -618,9 +646,12 @@ function openPop(bx){
       const nb=document.querySelector(`[data-bx="${id}"]`); if(nb) openPop(nb);}
   });
   const tI=q('#pT'); if(tI) tI.onchange=()=>commitDay(n=>{n.times[S][id]=tI.value.trim()});
-  const hI=q('#pH'); if(hI) hI.onchange=()=>commitDay(n=>{n.hl[S]=n.hl[S].filter(x=>x!==id);if(hI.checked)n.hl[S].push(id)});
-  const ovr=(f,val)=>{const dd=(e.def&&e.def[S])||{};
-    if(dd[f]!=null&&dd[f]!=='') saveElder(id,{def:{...e.def,[S]:{...dd,[f]:val}}}); else saveElder(id,{[f==='p'?'place':'contact']:val}); render(); const nb=document.querySelector(`[data-bx="${id}"]`); if(nb) openPop(nb)};
+  p.querySelectorAll('input[name=pH]').forEach(r=>r.onchange=()=>{const c=r.value,K=SK(S);
+    saveElder(id,{hl:{...(elders[id].hl||{}),[K]:c}});
+    if(dayDoc&&dayDoc.hl&&(dayDoc.hl[S]||[]).includes(id)) commitDay(n=>{n.hl[S]=n.hl[S].filter(x=>x!==id)}); else render();
+    const nb=document.querySelector(`[data-bx="${id}"]`); if(nb) openPop(nb)});
+  const ovr=(f,val)=>{const K=SK(S),dd=(e.def&&e.def[K])||{};
+    if(dd[f]!=null&&dd[f]!=='') saveElder(id,{def:{...e.def,[K]:{...dd,[f]:val}}}); else saveElder(id,{[f==='p'?'place':'contact']:val}); render(); const nb=document.querySelector(`[data-bx="${id}"]`); if(nb) openPop(nb)};
   const nI=q('#pN'); if(nI) nI.onchange=()=>{const v=nI.value.trim(); if(v){saveElder(id,{name:v});render()}};
   const pI=q('#pP'); if(pI) pI.onchange=()=>ovr('p',pI.value.trim());
   const cI=q('#pC'); if(cI) cI.onchange=()=>ovr('c',cI.value.trim());
@@ -631,8 +662,8 @@ document.addEventListener('mousedown',ev=>{if(!ev.target.closest('.srch')&&searc
 function openCrewPop(el){
   closePop(); const v=vById(el.dataset.cv), S=session, c=crewOf(v,S), ri=+el.dataset.ri; if(!v) return;
   const p=document.createElement('div'); p.id='pop';
-  p.innerHTML=`<h4>${esc(v.name)} ${S==='am'?'오전':'오후'} ${ri+1}회차</h4>
-    <div class="r"><label>출발</label><input id="cT" value="${esc((v[S]||[])[ri]||'')}" placeholder="7:30 또는 2차"></div>
+  p.innerHTML=`<h4>${esc(vname(v,S))} ${wd(curDate)===6?'토요일 ':''}${S==='am'?'오전':'오후'} ${ri+1}회차</h4>
+    <div class="r"><label>출발</label><input id="cT" value="${esc((v[SK(S)]||[])[ri]||'')}" placeholder="7:30 또는 2차"></div>
     <div class="r"><label>운전</label><input id="cD" value="${esc(c.driver)}"></div>
     ${v.assistant?`<div class="r"><label>보조</label><input id="cH" value="${esc(c.helper)}"></div>`:''}
     <div class="btns"><button class="primary" data-a="day">이 날만 바꾸기</button><button data-a="def">기본값으로 저장</button><button data-a="x">닫기</button></div>
@@ -641,12 +672,12 @@ function openCrewPop(el){
   const r=el.getBoundingClientRect(); p.style.left=Math.min(window.innerWidth-270,Math.max(10,r.left))+'px'; p.style.top=(r.bottom+8+220>window.innerHeight?Math.max(10,r.top-230):r.bottom+8)+'px';
   const val=()=>({driver:p.querySelector('#cD').value.trim(),helper:p.querySelector('#cH')?p.querySelector('#cH').value.trim():''});
   const tI=p.querySelector('#cT'); tI.onchange=()=>{const t=tI.value.trim(); if(!t) return;
-    const vs=JSON.parse(JSON.stringify(vehicles())).map(w=>{if(w.id!==v.id)return w;const a=[...(w[S]||[])];a[ri]=t;return {...w,[S]:a}});
+    const K=SK(S);const vs=JSON.parse(JSON.stringify(vehicles())).map(w=>{if(w.id!==v.id)return w;const a=[...(w[K]||[])];a[ri]=t;return {...w,[K]:a}});
     config={...cfg(),vehicles:vs}; save('config/main',config); render(); toast('출발 표시를 바꿨습니다 (모든 날 적용)')};
   p.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
     const a=b.dataset.a, x=val(); if(a==='x') return closePop(); closePop();
     if(a==='day') return commitDay(n=>{n.crew[S][v.id]={driver:x.driver,helper:x.helper}});
-    const C=S==='am'?'Am':'Pm';
+    const C=CK(S);
     const vs=JSON.parse(JSON.stringify(vehicles())).map(w=>w.id===v.id?{...w,['driver'+C]:x.driver,['helper'+C]:x.helper}:w);
     config={...cfg(),vehicles:vs}; save('config/main',config);
     // 그날 따로 바꾼 값이 있으면 지워서 기본값이 보이게
@@ -655,18 +686,18 @@ function openCrewPop(el){
   });
 }
 function openCarPop(el){
-  closePop(); const v=vById(el.dataset.car), S=session; if(!v) return; const C=CAP[S];
+  closePop(); const v=vById(el.dataset.car), S=session; if(!v) return; const C=CK(S), sat=wd(curDate)===6;
   const p=document.createElement('div'); p.id='pop';
   p.innerHTML=`<h4>차량 정보</h4>
-    <div class="r"><label>이름</label><input id="vN" value="${esc(v.name)}"></div>
+    <div class="r"><label>이름</label><input id="vN" value="${esc(vname(v,S))}"></div>
     <div class="r"><label>번호</label><input id="vP" value="${esc(v.plate||'')}"></div>
-    <div class="r"><label>송영폰</label><input id="vF" value="${esc(v['phone'+C]??v.phone??'')}" placeholder="${S==='am'?'오전':'오후'} 송영폰"></div>
+    <div class="r"><label>송영폰</label><input id="vF" value="${esc(v['phone'+C]??(sat?'':(v.phone??'')))}" placeholder="${S==='am'?'오전':'오후'} 송영폰"></div>
     <div class="btns"><button class="primary" data-a="ok">저장</button><button data-a="x">닫기</button></div>`;
   document.body.appendChild(p);
   const r=el.getBoundingClientRect(); p.style.left=Math.max(10,Math.min(window.innerWidth-310,r.left))+'px'; p.style.top=(r.bottom+8)+'px';
   p.querySelector('[data-a="x"]').onclick=closePop;
   p.querySelector('[data-a="ok"]').onclick=()=>{
-    const nv={name:p.querySelector('#vN').value.trim()||v.name,plate:p.querySelector('#vP').value.trim(),['phone'+C]:p.querySelector('#vF').value.trim()};
+    const nm=p.querySelector('#vN').value.trim();const nv={...(sat?{['name'+C]:nm}:{name:nm||v.name}),plate:p.querySelector('#vP').value.trim(),['phone'+C]:p.querySelector('#vF').value.trim()};
     const vs=JSON.parse(JSON.stringify(vehicles())).map(w=>w.id===v.id?{...w,...nv}:w);
     config={...cfg(),vehicles:vs}; save('config/main',config); closePop(); render(); toast('차량 정보를 저장했습니다');
   };
@@ -692,11 +723,11 @@ function fitA4(el){
 async function captureSheet(a4){
   const el=document.getElementById('sheet'); if(!el) throw new Error('송영표 양식 화면에서 눌러 주세요');
   if(!window.html2canvas) throw new Error('이미지 변환 도구를 불러오지 못했습니다');
-  closePop(); el.classList.add('exporting');
+  closePop(); el.style.zoom=''; el.classList.add('exporting');
   try{ if(document.fonts&&document.fonts.ready) await document.fonts.ready;
     if(a4) fitA4(el);
     return await html2canvas(el,{scale:2.5,backgroundColor:'#ffffff',useCORS:true,logging:false}); }
-  finally{ el.classList.remove('exporting','a4fit','tight','tight2'); ['--rg','--rm','--cm'].forEach(v=>el.style.removeProperty(v)); }
+  finally{ el.classList.remove('exporting','a4fit','tight','tight2'); ['--rg','--rm','--cm'].forEach(v=>el.style.removeProperty(v)); fitSheetMobile(); }
 }
 function fileBase(){return `송영표_${curDate}_${session==='am'?'오전':'오후'}`}
 function copyJpg(){
@@ -806,7 +837,7 @@ function saveAsDefault(){
   const {am,pm}=computeDay(); let cnt=0;
   const touched=new Set();
   for(const [S,R] of [['am',am],['pm',pm]]) for(const k in R.lists) R.lists[k].forEach((id,o)=>{
-    const e=elders[id]; if(!e) return; const od=(elders[id].def||{})[S]||{}; elders[id]={...elders[id],def:{...(elders[id].def||{}),[S]:{...od,k,o,t:timeOf(S,id)}}}; touched.add(id);
+    const e=elders[id]; if(!e) return; const K=SK(S);const od=(elders[id].def||{})[K]||{}; elders[id]={...elders[id],def:{...(elders[id].def||{}),[K]:{...od,k,o,t:timeOf(S,id)}}}; touched.add(id);
   });
   touched.forEach(id=>{const e={...elders[id]};delete e.id;save('elders/'+id,e);cnt++});
   toast(`${cnt}명의 기본 배차를 저장했습니다`);
@@ -818,8 +849,8 @@ async function copyText(){
     t+=`\n■ ${label}\n`;
     for(const v of vehiclesFor(S)){
       const c=crewOf(v,S);
-      t+=`\n${v.name}${v.plate?' ('+v.plate+')':''} - 운전 ${c.driver||'미정'}${v.assistant?' / 보조 '+(c.helper||'미정'):''}\n`;
-      (v[S]||[]).forEach((tm,i)=>{const L=R.lists[v.id+'#'+i]||[]; if(!L.length) return;
+      t+=`\n${vname(v,S)}${v.plate?' ('+v.plate+')':''} - 운전 ${c.driver||'미정'}${v.assistant?' / 보조 '+(c.helper||'미정'):''}\n`;
+      (v[SK(S)]||[]).forEach((tm,i)=>{const L=R.lists[v.id+'#'+i]||[]; if(!L.length) return;
         t+=` ${isTime(tm)?(i+1)+'회차 '+tm:tm}: `+L.map((id,n)=>`${n+1}.${elders[id]?.name||''}`).join(' ')+'\n'});
     }
     if(R.unassigned.length) t+=`미배정: ${R.unassigned.map(id=>elders[id]?.name).join(', ')}\n`;
@@ -1061,10 +1092,12 @@ function render(){
   const el=document.getElementById('view');
   if(!db&&dbState!=='pending'){el.innerHTML=`<div class="banner">저장소에 연결할 수 없습니다. claude.ai에 로그인한 상태에서 열어 주세요.</div>`;return}
   if(!Object.keys(elders).length&&view!=='cars'){el.innerHTML=`<div class="banner">${dbState==='pending'||!eldersLoaded?'어르신 목록을 불러오는 중…':'등록된 어르신이 없습니다. <b>차량·시간 설정 → 백업 가져오기</b>로 데이터를 넣거나, 어르신 목록에서 엑셀을 올려 주세요.'}</div>`+(eldersLoaded&&view==='elders'?renderElders():'');if(eldersLoaded&&view==='elders')bindElders();return}
-  if(view==='daily'){el.innerHTML=renderDaily();bindDaily();fitText()}
+  if(view==='daily'){el.innerHTML=renderDaily();bindDaily();fitText();fitSheetMobile()}
   else if(view==='elders'){el.innerHTML=renderElders();bindElders()}
   else {el.innerHTML=renderCars();bindCars()}
 }
+function fitSheetMobile(){const w=document.querySelector('.sheetwrap'),el=document.getElementById('sheet');if(!w||!el)return;const avail=w.clientWidth-8;el.style.zoom=avail<794?(avail/794).toFixed(3):''}
+window.addEventListener('resize',()=>{if(view==='daily')fitSheetMobile()});
 function fitText(){document.querySelectorAll('.bx .p').forEach(p=>{let f=10.5;p.style.fontSize=f+'px';while(p.scrollWidth>p.clientWidth+1&&f>7){f-=0.5;p.style.fontSize=f+'px'}})}
 function softRender(){ // 입력 중이면 다시 그리지 않음
   if(document.getElementById('pop')) return;
@@ -1078,8 +1111,8 @@ document.getElementById('hPrint').onclick=()=>{if(view!=='daily'){view='daily';r
 function printSheet(){
   if(!SERVER) return exportPdf();
   const el=document.getElementById('sheet'); if(!el) return;
-  closePop(); el.classList.add('exporting'); const r=fitA4(el); el.style.zoom=(0.955*r).toFixed(3);
-  const done=()=>{el.style.zoom='';el.classList.remove('exporting','a4fit','tight','tight2');['--rg','--rm','--cm'].forEach(v=>el.style.removeProperty(v));window.removeEventListener('afterprint',done)};
+  closePop(); el.style.zoom=''; el.classList.add('exporting'); const r=fitA4(el); el.style.zoom=(0.955*r).toFixed(3);
+  const done=()=>{el.style.zoom='';setTimeout(fitSheetMobile,0);el.classList.remove('exporting','a4fit','tight','tight2');['--rg','--rm','--cm'].forEach(v=>el.style.removeProperty(v));window.removeEventListener('afterprint',done)};
   window.addEventListener('afterprint',done);
   setTimeout(()=>{window.print();setTimeout(done,1500)},50);
 }
@@ -1096,6 +1129,52 @@ function subscribeDay(){
     if(was&&!s.metadata.hasPendingWrites&&!s.metadata.fromCache&&Date.now()-lastLocal>3000){toast('다른 곳에서 송영표가 바뀌어 바로 반영했습니다');closePop()}
     softRender()},err=>{toast('송영표를 불러오지 못했습니다')});
 }
+
+// ---------- 토요일 기본표 (최초 1회 자동 적용) ----------
+const SAT_TPL={
+ cars:{
+  v1:{nameSatAm:'스타리아',nameSatPm:'스타리아',phoneSatAm:'010-5562-8112',phoneSatPm:'010-5562-8112',driverSatAm:'노대호',helperSatAm:'현옥례',driverSatPm:'노대호',helperSatPm:'현옥례',satam:['08:00','바로 출발'],satpm:['15:10','16:05'],layoutSatAm:'1/2',layoutSatPm:'1/2'},
+  v4:{nameSatAm:'레이',nameSatPm:'레이',phoneSatAm:'010-8158-8112',phoneSatPm:'010-8158-8112',driverSatAm:'김효남',helperSatAm:'',driverSatPm:'강병곤',helperSatPm:'',satam:['7:30','2차'],satpm:['15:15','2차'],layoutSatAm:'1+2',layoutSatPm:'1+2'},
+  v3:{nameSatAm:'레이',nameSatPm:'레이',phoneSatAm:'010-8158-8113',phoneSatPm:'010-7917-8112',driverSatAm:'강병곤',helperSatAm:'',driverSatPm:'김효남',helperSatPm:'',satam:['7:15','2차','3차','4차'],satpm:['15:20','2차'],layoutSatAm:'1+2/3+4',layoutSatPm:'1+2'}
+ },
+ orderSatAm:['v1','v4','v3'], orderSatPm:['v1','v3','v4'],
+ satam:{
+  'v1#0':[['김운태','8:10'],['김태훈','8:15'],['장종만','8:20'],['이성희','8:25'],['김부남','8:30'],['우원순','8:40']],
+  'v1#1':[['이만순','9:00'],['장동기','9:05'],['김종순','9:10'],['명정순','9:15'],['박일순','9:25'],['승성자','9:30'],['김예환','9:35']],
+  'v4#0':[['유금순','7:40'],['장동호','7:45']],
+  'v4#1':[['강현구','8:15'],['황용식','8:20'],['김두수','8:40'],['윤복실','9:20']],
+  'v3#0':[['이금자','7:30'],['이종원','7:45']],
+  'v3#1':[['박재원','8:10'],['김성석','8:15'],['김찬회','8:20']],
+  'v3#2':[['김재옥','8:50'],['김경례','9:00'],['김성자','9:10']],
+  'v3#3':[['이화자','9:30']]
+ },
+ satpm:{
+  'v1#0':[['장동호','15:30'],['박재원','15:35'],['김성석','15:38'],['김찬회','15:40'],['승성자','15:45'],['김예환','15:50']],
+  'v1#1':[['이화자','16:10'],['허윤석','16:15'],['우원순','16:17'],['이만순','16:20'],['장동기','16:22'],['김종순','16:25'],['명정순','16:33']],
+  'v3#0':[['김재옥','15:30'],['김운태','15:38'],['김태훈','15:45'],['장종만','15:52']],
+  'v3#1':[['황용식','16:20'],['김두수','16:30'],['김성자','16:40']],
+  'v4#0':[['김부남','15:20'],['박일순','15:28'],['유금순','15:30']],
+  'v4#1':[['윤복실','16:10'],['이금자','16:15'],['이종원','16:25']]
+ }
+};
+let satSeeding=false;
+function maybeSeedSat(){
+  if(satSeeding||readOnly||!db||!config||config.satSeeded||!eldersLoaded) return;
+  satSeeding=true;
+  const byName={}; eldersArr().forEach(e=>{const n=(e.name||'').replace(/\s/g,'');if(!byName[n])byName[n]=e.id});
+  const patch={};
+  for(const K of ['satam','satpm']) for(const k in SAT_TPL[K]) SAT_TPL[K][k].forEach(([nm,t],o)=>{
+    let id=byName[nm];
+    if(!id){id='e'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);byName[nm]=id;elders[id]={id,name:nm,days:[6],status:'이용',def:{}};}
+    const e=patch[id]||(patch[id]={...elders[id],def:{...(elders[id].def||{})}});
+    e.def[K]={...(e.def[K]||{}),k,o,t};
+    const ds=new Set(e.days||[]); ds.add(6); e.days=[...ds].sort();
+  });
+  for(const id in patch) saveElder(id,patch[id]);
+  const vs=JSON.parse(JSON.stringify(vehicles())).map(v=>SAT_TPL.cars[v.id]?{...v,...SAT_TPL.cars[v.id]}:v);
+  config={...cfg(),vehicles:vs,orderSatAm:SAT_TPL.orderSatAm,orderSatPm:SAT_TPL.orderSatPm,satSeeded:true};
+  save('config/main',config); render(); toast('토요일 기본표를 적용했습니다');
+}
 (async()=>{
   const h=(location.hash||'').slice(1); if(['daily','elders','cars'].includes(h)) view=h;
   if(SERVER&&await window.SDC.me()) authed=true;
@@ -1106,12 +1185,12 @@ function subscribeDay(){
   try{ downloads=window.claude&&await window.claude.use('downloads'); }catch(e){downloads=null}
   dbState=db?'ok':'none';
   if(!db){clearTimeout(timer);document.getElementById('conn').textContent='저장소 없음';render();return}
-  db.doc('config/main').onSnapshot(s=>{config=s.exists?s.data():null;softRender()},()=>{});
+  db.doc('config/main').onSnapshot(s=>{config=s.exists?s.data():null;softRender();maybeSeedSat()},()=>{});
   db.collection('elders').onSnapshot(q=>{
     clearTimeout(timer);
     const m={}; q.docs.forEach(d=>m[d.id]={id:d.id,...d.data()}); elders=m;
     if(!q.metadata.fromCache){eldersLoaded=true;const c=document.getElementById('conn');c.innerHTML='<i class="dot"></i>'+(readOnly?'보기 전용 · 실시간':'실시간 반영 중');c.classList.add('live')}
-    softRender();
+    softRender(); maybeSeedSat();
   },e=>{clearTimeout(timer);eldersLoaded=true;document.getElementById('conn').textContent='연결 오류';render()});
   subscribeDay();
 })();
