@@ -118,6 +118,25 @@ td input.w-addr{min-width:260px} td input.w-note{min-width:240px}
 .days button.on{background:var(--green);border-color:var(--green);color:#fff}
 tr.off td{opacity:.5}
 .hint{font-size:13px;color:var(--sub);margin:0 0 12px;line-height:1.6}
+.satbox{border:1px dashed var(--line);border-radius:8px;padding:6px 8px;margin:6px 0}.satbox summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--ink)}
+.need{color:#e00;font-weight:700}
+.stw{overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff;max-height:70vh}
+table.stt{border-collapse:collapse;font-size:12px;white-space:nowrap}
+.stt th,.stt td{border:1px solid #e3e6ea;padding:0;text-align:center;min-width:26px;height:26px}
+.stt th{background:#f5f7f9;font-weight:600;position:sticky;top:0;z-index:2}
+.stt th.wd{top:27px}
+.stt td.nm,.stt th.nm{position:sticky;left:0;background:#fff;z-index:1;text-align:left;padding:0 8px;min-width:78px}
+.stt th.nm{z-index:3;background:#f5f7f9}
+.stt td.rl{color:var(--sub);font-size:11px;padding:0 6px}
+.stt .sun{color:#d33}.stt .sat{color:#2a62c9}
+.stt td.x{background:linear-gradient(to top right,transparent calc(50% - 1.5px),#e00 calc(50% - 1px),#e00 calc(50% + 1px),transparent calc(50% + 1.5px))}
+.stt td.yc{background:#ffe1e1;color:#d00;font-weight:700}
+.stt td.hc{background:#fff0d6;color:#b36b00}
+.stt td.o{color:#9aa3ad}
+.stt .today{outline:2px solid #2a62c9;outline-offset:-2px}
+.stt td.oncar{font-weight:700}
+.offlist{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.offlist span{background:#ffe9e9;color:#c00;border-radius:12px;padding:3px 10px;font-size:13px}
 .vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
 .vcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
 .vcard .row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
@@ -168,7 +187,9 @@ tr.off td{opacity:.5}
 .bx .t{border-bottom:1px solid #444;text-align:center;font-size:12px;font-weight:700;height:19px;line-height:18px}
 .bx .t.hl,.bx .t.hl-y{background:#ffff00}
 .bx .t.hl-b{background:#9bd7ff}
-.hlpick{display:flex;gap:4px;flex:1}.hp{display:flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);font-size:13px;width:auto!important;color:var(--ink)!important}.hp input{margin:0}.hp-y{background:#ffff66}.hp-b{background:#bfe6ff}
+.bx .t.hl-g{background:#7ee08a}
+.bx .t.hl-o{background:#fbd3b0}
+.hlpick{display:flex;gap:4px;flex:1;flex-wrap:wrap}.hp{display:flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);font-size:13px;width:auto!important;color:var(--ink)!important}.hp input{margin:0}.hp-y{background:#ffff66}.hp-b{background:#bfe6ff}.hp-g{background:#b6efbe}.hp-o{background:#fbd3b0}
 .bx .n{text-align:center;font-size:14px;font-weight:700;height:24px;line-height:24px;border-bottom:1px dashed #888;white-space:nowrap;overflow:hidden}
 .bx .p{text-align:center;font-size:10.5px;line-height:20px;height:20px;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:clip;letter-spacing:-.2px}
 .bx .c{text-align:center;font-size:9.5px;color:#d00;font-weight:700;margin-top:3px;line-height:1.25;word-break:keep-all}
@@ -262,6 +283,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
       <button data-v="daily" class="on">날짜별 송영표</button>
       <button data-v="elders">어르신 목록</button>
       <button data-v="cars">차량·시간 설정</button>
+      <button data-v="staff">직원출근표</button>
     </nav>
     <span class="hdbtns" id="hdExport"><button id="hPrint">🖨 출력 (A4)</button><button id="hJpg">JPG 저장</button><button id="hCopy">JPG 복사</button></span>
     <span class="status" id="conn"><i class="dot"></i>연결 중…</span>
@@ -560,7 +582,7 @@ function renderSheet(R,att){
     <span class="sh-box c1 ${S}">${w===6||w===0?'주말':'평일'}</span><span class="sh-box c2 ${S}">${S==='am'?'오 전':'오 후'}</span><span class="sh-box tot ${S}">${placedTotal}</span></div>`;
   for(const v of vehiclesFor(S)){
     const runs=v[SK(S)]||[]; if(!runs.length) continue;
-    const c=crewOf(v), crew=[c.driver,v.assistant?c.helper:''].filter(Boolean).join('/');
+    const c=crewOf(v), crew=[c.driver,v.assistant?c.helper:''].filter(Boolean).join('/'), crewH=crewHtml([c.driver,v.assistant?c.helper:'']);
     let cnt=0; runs.forEach((t,i)=>cnt+=(R.lists[v.id+'#'+i]||[]).length);
     const ph=v['phone'+CK(S)]??(wd(curDate)===6?'':(v.phone??''));
     const perRun=runs.map((t,i)=>(R.lists[v.id+'#'+i]||[]).length);
@@ -595,7 +617,7 @@ function renderSheet(R,att){
       row.forEach((sg,si)=>{
         const t=runs[sg.i]||'', lines=Math.max(1,Math.ceil(sg.items.length/sg.wdt));
         const lc=si===0?1:Math.max(colEnd+1,8-sg.wdt), bc=lc+1;
-        cells+=`<div class="${si===0?'rl':'rl2'} crewl" data-cv="${v.id}" data-ri="${sg.i}" title="눌러서 출발·운전자 수정" style="grid-column:${lc};grid-row:1 / span ${lines}"><b>${esc(runLabel(t))}</b><span>${esc(crew)||'<i style="color:#bbb">운전자</i>'}</span></div>`;
+        cells+=`<div class="${si===0?'rl':'rl2'} crewl" data-cv="${v.id}" data-ri="${sg.i}" title="눌러서 출발·운전자 수정" style="grid-column:${lc};grid-row:1 / span ${lines}"><b>${esc(runLabel(t))}</b><span>${crewH||'<i style="color:#bbb">운전자</i>'}</span></div>`;
         sg.items.forEach((x,j)=>{cells+=boxHtml(x.id,x.st,v.id+'#'+sg.i,`grid-column:${bc+(j%sg.wdt)};grid-row:${1+Math.floor(j/sg.wdt)}`)});
         colEnd=bc+sg.wdt-1;
       });
@@ -625,7 +647,7 @@ function openPop(bx){
   else if(st==='off') h+=`<p class="hint">${DOW[wd(curDate)]}요일은 이용 요일이 아니라 결석으로 표시돼요. (이용 요일: ${esc((e.days||[]).map(d=>DOW[d]).join(''))})</p><div class="btns"><button class="primary" data-a="extra">오늘만 출석</button><button data-a="x">닫기</button></div>`;
   else if(st==='ns') h+=`<p class="hint">첫 이용일(${esc(e.start)}) 전이라 흐리게 표시됩니다.</p><div class="btns"><button data-a="x">닫기</button></div>`;
   else h+=`<div class="r"><label>시간</label><input id="pT" value="${esc(timeOf(S,id))}" placeholder="18:20"></div>
-    <div class="r"><label>강조</label><span class="hlpick">${[['','없음'],['y','노랑'],['b','하늘']].map(([c,l])=>`<label class="hp hp-${c||'n'}"><input type="radio" name="pH" value="${c}" ${(hlOf(S,id)===c)?'checked':''}>${l}</label>`).join('')}</span></div>
+    <div class="r"><label>강조</label><span class="hlpick">${[['','없음'],['y','노랑'],['o','주황'],['g','녹색'],['b','하늘']].map(([c,l])=>`<label class="hp hp-${c||'n'}"><input type="radio" name="pH" value="${c}" ${(hlOf(S,id)===c)?'checked':''}>${l}</label>`).join('')}</span></div>
     <div class="r"><label>이름</label><input id="pN" value="${esc(e.name)}"></div>
     <div class="r"><label>주소</label><input id="pP" value="${esc((e.def&&e.def[SK(S)]&&e.def[SK(S)].p)||e.place||e.address||'')}"></div>
     <div class="r"><label>연락처</label><input id="pC" value="${esc((e.def&&e.def[SK(S)]&&e.def[SK(S)].c)||e.contact||'')}"></div>
@@ -664,6 +686,7 @@ function openCrewPop(el){
   const p=document.createElement('div'); p.id='pop';
   p.innerHTML=`<h4>${esc(vname(v,S))} ${wd(curDate)===6?'토요일 ':''}${S==='am'?'오전':'오후'} ${ri+1}회차</h4>
     <div class="r"><label>출발</label><input id="cT" value="${esc((v[SK(S)]||[])[ri]||'')}" placeholder="7:30 또는 2차"></div>
+    ${[c.driver,v.assistant?c.helper:''].filter(x=>x&&offReason(x)).map(x=>`<p class="hint" style="color:#d00;margin:0 0 6px">${esc(x)}: 출근표상 ${esc(offReason(x))} → 변경필요</p>`).join('')}
     <div class="r"><label>운전</label><input id="cD" value="${esc(c.driver)}"></div>
     ${v.assistant?`<div class="r"><label>보조</label><input id="cH" value="${esc(c.helper)}"></div>`:''}
     <div class="btns"><button class="primary" data-a="day">이 날만 바꾸기</button><button data-a="def">기본값으로 저장</button><button data-a="x">닫기</button></div>
@@ -849,7 +872,8 @@ async function copyText(){
     t+=`\n■ ${label}\n`;
     for(const v of vehiclesFor(S)){
       const c=crewOf(v,S);
-      t+=`\n${vname(v,S)}${v.plate?' ('+v.plate+')':''} - 운전 ${c.driver||'미정'}${v.assistant?' / 보조 '+(c.helper||'미정'):''}\n`;
+      const nd=x=>x&&offReason(x)?'변경필요('+x+' '+offReason(x)+')':x;
+      t+=`\n${vname(v,S)}${v.plate?' ('+v.plate+')':''} - 운전 ${nd(c.driver)||'미정'}${v.assistant?' / 보조 '+(nd(c.helper)||'미정'):''}\n`;
       (v[SK(S)]||[]).forEach((tm,i)=>{const L=R.lists[v.id+'#'+i]||[]; if(!L.length) return;
         t+=` ${isTime(tm)?(i+1)+'회차 '+tm:tm}: `+L.map((id,n)=>`${n+1}.${elders[id]?.name||''}`).join(' ')+'\n'});
     }
@@ -1011,11 +1035,16 @@ function bindElders(){
 // ---------- 화면: 차량 설정 ----------
 function renderCars(){
   const nm=S=>vehiclesFor(S).map(v=>v.name).join(', ');
+  const nmSat=S=>{const o=cfg()['orderSat'+CAP[S]]||[];return o.map(id=>(vById(id)||{}).name).filter(Boolean).join(', ')};
   let h=`<div class="upbox"><h3>데이터 백업</h3><p class="hint" style="margin:0 0 8px">어르신·차량·날짜별 송영표 전체를 파일 하나로 내보내거나, 내보낸 파일을 그대로 다시 넣을 수 있어요. 다른 서버로 옮길 때도 이걸 씁니다.</p>
     <div class="toolbar" style="margin:0"><button id="bkOut" class="primary">백업 내보내기 (.json)</button><label class="drop" style="padding:8px 14px;display:inline-block">백업 가져오기<input type="file" id="bkIn" accept=".json" hidden></label><span id="bkMsg" class="meta"></span></div></div>
   <div class="upbox"><h3>송영표 차량 순서</h3><div class="toolbar" style="margin:0">
     <label>오전 <input id="ordAm" value="${esc(nm('am'))}" style="width:260px"></label>
-    <label>오후 <input id="ordPm" value="${esc(nm('pm'))}" style="width:260px"></label></div></div>
+    <label>오후 <input id="ordPm" value="${esc(nm('pm'))}" style="width:260px"></label></div>
+    <div class="toolbar" style="margin:8px 0 0">
+    <label>토요일 오전 <input id="ordSatAm" value="${esc(nmSat('am'))}" style="width:220px"></label>
+    <label>토요일 오후 <input id="ordSatPm" value="${esc(nmSat('pm'))}" style="width:220px"></label></div>
+    <p class="hint" style="margin:6px 0 0">차량 이름(1호차, 3호차…)을 쉼표로 적으면 그 순서대로 나옵니다.</p></div>
   <p class="hint">회차별 출발은 쉼표로 구분해 적어 주세요. 시간 대신 <b>2차</b>처럼 글자로 적어도 됩니다 (예: <b>08:00, 09:00</b>). 회차를 늘리면 하루에 같은 차량이 여러 번 운행합니다. 운전자·보조자는 오전·오후 기본값이고, 날짜별 송영표에서 운전자 이름을 누르면 그날만 바꿀 수 있어요.<br><b>줄배치</b>는 송영표에서 회차를 어떻게 놓을지 정합니다: <b>/</b>는 줄 바꿈, <b>+</b>는 같은 줄 오른쪽에 붙이기, <b>(4)</b>는 4칸마다 줄 바꿈. 예) <b>1+3/2+4</b> → 1회차 옆에 3회차, 다음 줄에 2회차 옆 4회차</p><div class="vgrid">`;
   vehicles().forEach((v,i)=>{
     h+=`<div class="vcard" data-i="${i}">
@@ -1033,6 +1062,19 @@ function renderCars(){
       <div class="row"><label>오후 출발</label><input data-f="pm" value="${esc((v.pm||[]).join(', '))}"></div>
       <div class="row"><label>오전 줄배치</label><input data-f="layoutAm" value="${esc(v.layoutAm||'')}" placeholder="예: 1/2"></div>
       <div class="row"><label>오후 줄배치</label><input data-f="layoutPm" value="${esc(v.layoutPm||'')}" placeholder="예: 1+3/2+4"></div>
+      <details class="satbox" ${(v.satam||[]).length||(v.satpm||[]).length?'open':''}><summary>토요일 설정 ${(v.satam||[]).length||(v.satpm||[]).length?'<span class="meta">(운행)</span>':'<span class="meta">(운행 안 함)</span>'}</summary>
+      <div class="row"><label>토요일 표시 이름</label><input data-f="nameSat" value="${esc(v.nameSatAm||'')}" placeholder="${esc(v.name)} (예: 스타리아)"></div>
+      <div class="row"><label>토 오전 출발</label><input data-f="satam" value="${esc((v.satam||[]).join(', '))}" placeholder="비우면 운행 안 함"></div>
+      <div class="row"><label>토 오후 출발</label><input data-f="satpm" value="${esc((v.satpm||[]).join(', '))}" placeholder="비우면 운행 안 함"></div>
+      <div class="row"><label>토 오전 운전자</label><input data-f="driverSatAm" value="${esc(v.driverSatAm||'')}"></div>
+      ${v.assistant?`<div class="row"><label>토 오전 보조자</label><input data-f="helperSatAm" value="${esc(v.helperSatAm||'')}"></div>`:''}
+      <div class="row"><label>토 오후 운전자</label><input data-f="driverSatPm" value="${esc(v.driverSatPm||'')}"></div>
+      ${v.assistant?`<div class="row"><label>토 오후 보조자</label><input data-f="helperSatPm" value="${esc(v.helperSatPm||'')}"></div>`:''}
+      <div class="row"><label>토 오전 송영폰</label><input data-f="phoneSatAm" value="${esc(v.phoneSatAm||'')}"></div>
+      <div class="row"><label>토 오후 송영폰</label><input data-f="phoneSatPm" value="${esc(v.phoneSatPm||'')}"></div>
+      <div class="row"><label>토 오전 줄배치</label><input data-f="layoutSatAm" value="${esc(v.layoutSatAm||'')}" placeholder="예: 1/2"></div>
+      <div class="row"><label>토 오후 줄배치</label><input data-f="layoutSatPm" value="${esc(v.layoutSatPm||'')}" placeholder="예: 1+2"></div>
+      </details>
       <div class="row" style="justify-content:flex-end;margin:0"><button data-del="${i}" class="ghost" style="color:var(--warn)">차량 삭제</button></div></div>`;
   });
   h+=`</div><div class="toolbar" style="margin-top:12px"><button id="addCar">+ 차량 추가</button></div>`;
@@ -1067,7 +1109,10 @@ function bindCars(){
       const vs=JSON.parse(JSON.stringify(vehicles())), f=inp.dataset.f;
       if(f==='cap') vs[i].cap=Math.max(1,parseInt(inp.value)||1);
       else if(f==='assistant') vs[i].assistant=inp.checked;
-      else if(f==='am'||f==='pm') vs[i][f]=inp.value.split(',').map(s=>s.trim()).filter(Boolean);
+      else if(f==='am'||f==='pm'||f==='satam'||f==='satpm'){vs[i][f]=inp.value.split(',').map(s=>s.trim()).filter(Boolean);
+        if(f.startsWith('sat')){const X=f==='satam'?'SatAm':'SatPm',o=[...(cfg()['order'+X]||[])],id=vs[i].id;
+          if(vs[i][f].length&&!o.includes(id)){o.push(id);config={...cfg(),['order'+X]:o}}}}
+      else if(f==='nameSat'){vs[i].nameSatAm=vs[i].nameSatPm=inp.value.trim()}
       else vs[i][f]=inp.value.trim();
       commit(vs);
     });
@@ -1075,7 +1120,7 @@ function bindCars(){
   document.querySelectorAll('[data-del]').forEach(b=>{let armed=false;b.onclick=()=>{
     if(!armed){armed=true;b.textContent='한 번 더 누르면 삭제';setTimeout(()=>{armed=false;b.textContent='차량 삭제'},3000);return}
     const vs=vehicles().filter((_,j)=>j!==+b.dataset.del);commit(vs)}});
-  ['Am','Pm'].forEach(X=>{const el=document.getElementById('ord'+X);el.onchange=()=>{
+  ['Am','Pm','SatAm','SatPm'].forEach(X=>{const el=document.getElementById('ord'+X);el.onchange=()=>{
     const names=el.value.split(/[,\s]+/).filter(Boolean), vs=vehicles();
     const ids=names.map(n=>(vs.find(v=>v.name===n||v.name===n+'호차'||v.name.replace('호차','')===n)||{}).id).filter(Boolean);
     config={...cfg(),['order'+X]:ids};save('config/main',config);render()}});
@@ -1085,15 +1130,130 @@ function bindCars(){
   };
 }
 
+
+// ---------- 직원출근표 ----------
+let staffDocs={}; let staffYm='';
+function normName(x){return String(x||'').replace(/\(.*?\)/g,'').replace(/\s/g,'')}
+function staffDocFor(date){return staffDocs[date.slice(0,7)]}
+function staffCell(name,date){const d=staffDocFor(date);if(!d)return null;const n=normName(name);const p=(d.staff||[]).find(x=>x.name===n);if(!p)return null;return (p.d||{})[String(+date.slice(8,10))]||''}
+function isOffVal(v){return v==='X'||/연차|^연$/.test(v||'')}
+function offReason(name,date=curDate){const v=staffCell(name,date);if(v==null||!isOffVal(v))return '';return v==='X'?'휴무':'연차'}
+function crewHtml(names){return names.filter(Boolean).map(n=>{const r=offReason(n);return r?`<b class="need" title="${esc(n)} ${esc(r)}">변경필요</b>`:esc(n)}).join('/')}
+async function unzipXlsx(buf){
+  const u8=new Uint8Array(buf),dv=new DataView(buf);let e=u8.length-22;
+  while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--; if(e<0) throw new Error('엑셀(xlsx) 파일이 아닙니다');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const ent={};const td=new TextDecoder();
+  for(let i=0;i<n;i++){const m=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);
+    ent[td.decode(u8.subarray(p+46,p+46+nl))]={m,cs,lo};p+=46+nl+xl+cl}
+  return async name=>{const f=ent[name];if(!f)return null;const a=f.lo+30+dv.getUint16(f.lo+26,true)+dv.getUint16(f.lo+28,true);const data=u8.subarray(a,a+f.cs);
+    if(f.m===0)return td.decode(data);
+    if(typeof DecompressionStream==='undefined') throw new Error('브라우저가 오래되어 엑셀을 읽을 수 없습니다. 크롬 최신 버전에서 올려 주세요');
+    return await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text()};
+}
+function colIdx(ref){const m=/^([A-Z]+)/.exec(ref);let n=0;for(const ch of m[1])n=n*26+ch.charCodeAt(0)-64;return n}
+async function parseStaffXlsx(file){
+  const read=await unzipXlsx(await file.arrayBuffer()), P=x=>new DOMParser().parseFromString(x,'application/xml');
+  const ss=[]; {const x=await read('xl/sharedStrings.xml'); if(x) for(const si of P(x).getElementsByTagName('si')) ss.push([...si.getElementsByTagName('t')].map(t=>t.textContent).join(''))}
+  const diagXf=[]; {const st=P(await read('xl/styles.xml')); const bs=[...(st.getElementsByTagName('borders')[0]||{children:[]}).children].map(b=>{
+      const d=b.getElementsByTagName('diagonal')[0]; const on=/^(1|true)$/.test(b.getAttribute('diagonalUp')||'')||/^(1|true)$/.test(b.getAttribute('diagonalDown')||'');
+      return !!(on&&d&&d.getAttribute('style'))});
+    const cx=st.getElementsByTagName('cellXfs')[0]; if(cx) [...cx.children].forEach((xf,i)=>diagXf[i]=!!bs[+xf.getAttribute('borderId')||0])}
+  const wb=P(await read('xl/workbook.xml')), rels=P(await read('xl/_rels/workbook.xml.rels')); const rmap={};
+  for(const r of rels.getElementsByTagName('Relationship')) rmap[r.getAttribute('Id')]=r.getAttribute('Target');
+  const out=[];
+  for(const sh of wb.getElementsByTagName('sheet')){
+    const title=sh.getAttribute('name')||''; let tg=rmap[sh.getAttribute('r:id')]||''; tg=tg.replace(/^\/?xl\//,'').replace(/^\//,'');
+    const x=await read('xl/'+tg); if(!x) continue;
+    const doc=P(x); const rows={};
+    for(const c of doc.getElementsByTagName('c')){const ref=c.getAttribute('r');if(!ref)continue;const row=+ref.replace(/^[A-Z]+/,''),col=colIdx(ref);
+      const t=c.getAttribute('t'), v=c.getElementsByTagName('v')[0]; let val='';
+      if(t==='s'&&v) val=ss[+v.textContent]||''; else if(t==='inlineStr') val=[...c.getElementsByTagName('t')].map(z=>z.textContent).join(''); else if(v) val=v.textContent;
+      (rows[row]=rows[row]||{})[col]={v:String(val).trim(),x:!!diagXf[+c.getAttribute('s')||0]}}
+    // 여러 줄을 세로로 합친 칸(예: 월례회의)은 출근 기록이 아니므로 글자를 무시
+    for(const mc of doc.getElementsByTagName('mergeCell')){const m=/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(mc.getAttribute('ref')||'');if(!m)continue;
+      const r1=+m[2],r2=+m[4],c1=colIdx(m[1]),c2=colIdx(m[3]); if(r2-r1<2) continue;
+      for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++) if(rows[r]&&rows[r][c]) rows[r][c].v=''}
+    // 날짜 머리줄: 1,2,3… 이 이어지는 줄
+    let hr=0,dayCols={};
+    for(const r of Object.keys(rows).map(Number).sort((a,b)=>a-b)){const cols=Object.keys(rows[r]).map(Number).sort((a,b)=>a-b);const dc={};let k=1;
+      for(const c of cols){if(rows[r][c].v===String(k)){dc[c]=k;k++}} if(k>28){hr=r;dayCols=dc;break}}
+    if(!hr) continue;
+    let mon=+((/(\d{1,2})\s*월/.exec(title)||[])[1]||0), yr=new Date().getFullYear();
+    for(const r in rows) for(const c in rows[r]){const m=/(\d{4})\s*년\s*(\d{1,2})\s*월/.exec(rows[r][c].v); if(m){yr=+m[1];mon=+m[2];break}}
+    if(!mon) continue;
+    const first=Math.min(...Object.keys(dayCols).map(Number));
+    // 이름 칸: 날짜 왼쪽 칸 중 값이 가장 다양한 칸
+    const cand={};for(const r in rows) if(+r>hr+1) for(const c in rows[r]) if(+c<first&&/^[가-힣]{2,5}(\(.*\))?$/.test(rows[r][c].v)) (cand[c]=cand[c]||new Set()).add(rows[r][c].v);
+    const nc=+Object.keys(cand).sort((a,b)=>cand[b].size-cand[a].size)[0]; if(!nc) continue;
+    const staff=[];let team='';
+    for(const r of Object.keys(rows).map(Number).filter(r=>r>hr+1).sort((a,b)=>a-b)){
+      const R=rows[r]; if(R[nc-1]&&R[nc-1].v) team=R[nc-1].v;
+      const raw=(R[nc]||{}).v||''; if(!/^[가-힣]{2,5}(\(.*\))?$/.test(raw)) continue;
+      const d={}; for(const c in dayCols){const cell=R[c]; if(!cell) continue; const val=cell.x?'X':(/\n/.test(cell.v)?'':cell.v); if(val) d[dayCols[c]]=val}
+      staff.push({name:normName(raw),label:raw,role:(R[nc+1]||{}).v||'',team,d});
+    }
+    const ym=`${yr}-${String(mon).padStart(2,'0')}`;
+    out.push({ym,title,days:Object.keys(dayCols).length,staff,uploadedAt:new Date().toISOString()});
+  }
+  return out;
+}
+function staffCarRoles(name,date){
+  // 그날 송영표 기본 운전/보조 배정 (화면용)
+  const w=wd(date),res=[];
+  for(const S of ['am','pm']){const K=w===6?'sat'+S:S,C=CAP[K];
+    for(const v of vehicles()){if(!(v[K]||[]).length)continue;
+      const dd=v['driver'+C]||(w===6?'':v.driver||''),dh=v['helper'+C]||(w===6?'':v.helper||'');
+      if(normName(dd)===name) res.push(`${(w===6&&v['name'+C])||v.name} ${S==='am'?'오전':'오후'} 운전`);
+      if(v.assistant&&normName(dh)===name) res.push(`${(w===6&&v['name'+C])||v.name} ${S==='am'?'오전':'오후'} 보조`)}}
+  return res;
+}
+function renderStaff(){
+  const yms=Object.keys(staffDocs).sort(); if(!staffYm||!staffDocs[staffYm]) staffYm=staffDocs[curDate.slice(0,7)]?curDate.slice(0,7):(yms[yms.length-1]||'');
+  let h=`<div class="upbox"><h3>직원출근표 올리기</h3><p class="hint" style="margin:0 0 8px">근무일정표 엑셀(.xlsx)을 올리면 시트(6월, 7월…)마다 자동으로 읽어서 저장합니다. 같은 달을 다시 올리면 새 내용으로 바뀝니다.<br><b>빨간 사선</b>(휴무)과 <b>연차</b>인 날은 결석으로 보고, 그날 송영표에서 그 직원 이름 대신 <b class="need">변경필요</b>가 표시됩니다.</p>
+    <label class="drop" style="padding:8px 14px;display:inline-block">엑셀 파일 선택<input type="file" id="stIn" accept=".xlsx" hidden></label> <span id="stMsg" class="meta"></span></div>`;
+  if(!yms.length) return h+`<div class="banner">아직 올린 출근표가 없습니다.</div>`;
+  h+=`<div class="toolbar"><div class="seg">${yms.map(y=>`<button data-ym="${y}" class="${y===staffYm?'on':''}">${+y.slice(5)}월</button>`).join('')}</div>
+    <button id="stDel" class="ghost" style="color:var(--warn)">${+staffYm.slice(5)}월 출근표 삭제</button></div>`;
+  const D=staffDocs[staffYm]; const [Y,M]=staffYm.split('-').map(Number); const nd=new Date(Y,M,0).getDate();
+  if(curDate.startsWith(staffYm)){
+    const off=(D.staff||[]).filter(p=>isOffVal((p.d||{})[String(+curDate.slice(8))]));
+    h+=`<div class="upbox" style="padding:10px 14px"><b>${+curDate.slice(5,7)}월 ${+curDate.slice(8)}일(${DOW[wd(curDate)]}) 쉬는 직원</b>
+      <div class="offlist">${off.length?off.map(p=>{const r=staffCarRoles(p.name,curDate);return `<span>${esc(p.name)} · ${(p.d||{})[String(+curDate.slice(8))]==='X'?'휴무':'연차'}${r.length?' → <b>'+esc(r.join(', '))+' 변경필요</b>':''}</span>`}).join(''):'<i class="meta">없음</i>'}</div></div>`;
+  }
+  h+=`<div class="stw"><table class="stt"><thead><tr><th class="nm">이름</th><th>직책</th>`;
+  for(let d=1;d<=nd;d++){const ds=`${staffYm}-${String(d).padStart(2,'0')}`,w=wd(ds);h+=`<th class="${w===0?'sun':w===6?'sat':''} ${ds===curDate?'today':''}">${d}</th>`}
+  h+=`</tr><tr><th class="nm wd" style="top:27px"></th><th class="wd"></th>`;
+  for(let d=1;d<=nd;d++){const ds=`${staffYm}-${String(d).padStart(2,'0')}`,w=wd(ds);h+=`<th class="wd ${w===0?'sun':w===6?'sat':''}">${DOW[w]}</th>`}
+  h+=`</tr></thead><tbody>`;
+  for(const p of D.staff||[]){h+=`<tr><td class="nm">${esc(p.label||p.name)}</td><td class="rl">${esc(p.role||'')}</td>`;
+    for(let d=1;d<=nd;d++){const v=(p.d||{})[String(d)]||'',ds=`${staffYm}-${String(d).padStart(2,'0')}`;
+      const cls=v==='X'?'x':/연차|^연$/.test(v)?'yc':/반차/.test(v)?'hc':v==='O'?'o':'';
+      h+=`<td class="${cls} ${ds===curDate?'today':''}" title="${esc(p.name)} ${d}일 ${v==='X'?'휴무':esc(v)}">${v==='X'?'':esc(v==='연차'?'연차':v)}</td>`}
+    h+=`</tr>`}
+  return h+`</tbody></table></div><p class="hint">빨간 사선 = 휴무, 분홍 = 연차(결석), 주황 = 반차(출근으로 봄). 파란 테두리는 송영표에서 보고 있는 날짜입니다.</p>`;
+}
+function bindStaff(){
+  const f=document.getElementById('stIn'); if(f) f.onchange=async()=>{const x=f.files[0];f.value='';if(!x)return;const m=document.getElementById('stMsg');m.textContent='읽는 중…';
+    try{const list=await parseStaffXlsx(x); if(!list.length){m.textContent='근무일정표 형식의 시트를 찾지 못했습니다';return}
+      for(const d of list){staffDocs[d.ym]=d;save('staff/'+d.ym,d)}
+      staffYm=list.some(d=>d.ym===curDate.slice(0,7))?curDate.slice(0,7):list[list.length-1].ym;
+      toast(`${list.map(d=>+d.ym.slice(5)+'월').join(', ')} 출근표를 반영했습니다 (${list.reduce((a,d)=>a+d.staff.length,0)}명분)`); render()}
+    catch(e){m.textContent='읽기 실패: '+(e.message||e)}};
+  document.querySelectorAll('[data-ym]').forEach(b=>b.onclick=()=>{staffYm=b.dataset.ym;render()});
+  const del=document.getElementById('stDel'); if(del){let armed=false;del.onclick=async()=>{
+    if(!armed){armed=true;del.textContent='한 번 더 누르면 삭제';setTimeout(()=>{armed=false;render()},3000);return}
+    const ym=staffYm; delete staffDocs[ym]; staffYm=''; try{await db.doc('staff/'+ym).delete()}catch(e){} render()}}
+}
 // ---------- 렌더 ----------
 function render(){
   if(!authed) return;
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   const el=document.getElementById('view');
   if(!db&&dbState!=='pending'){el.innerHTML=`<div class="banner">저장소에 연결할 수 없습니다. claude.ai에 로그인한 상태에서 열어 주세요.</div>`;return}
-  if(!Object.keys(elders).length&&view!=='cars'){el.innerHTML=`<div class="banner">${dbState==='pending'||!eldersLoaded?'어르신 목록을 불러오는 중…':'등록된 어르신이 없습니다. <b>차량·시간 설정 → 백업 가져오기</b>로 데이터를 넣거나, 어르신 목록에서 엑셀을 올려 주세요.'}</div>`+(eldersLoaded&&view==='elders'?renderElders():'');if(eldersLoaded&&view==='elders')bindElders();return}
+  if(!Object.keys(elders).length&&view!=='cars'&&view!=='staff'){el.innerHTML=`<div class="banner">${dbState==='pending'||!eldersLoaded?'어르신 목록을 불러오는 중…':'등록된 어르신이 없습니다. <b>차량·시간 설정 → 백업 가져오기</b>로 데이터를 넣거나, 어르신 목록에서 엑셀을 올려 주세요.'}</div>`+(eldersLoaded&&view==='elders'?renderElders():'');if(eldersLoaded&&view==='elders')bindElders();return}
   if(view==='daily'){el.innerHTML=renderDaily();bindDaily();fitText();fitSheetMobile()}
   else if(view==='elders'){el.innerHTML=renderElders();bindElders()}
+  else if(view==='staff'){el.innerHTML=renderStaff();bindStaff()}
   else {el.innerHTML=renderCars();bindCars()}
 }
 function fitSheetMobile(){const w=document.querySelector('.sheetwrap'),el=document.getElementById('sheet');if(!w||!el)return;const avail=w.clientWidth-8;el.style.zoom=avail<794?(avail/794).toFixed(3):''}
@@ -1134,7 +1294,7 @@ function subscribeDay(){
 const SAT_TPL={
  cars:{
   v1:{nameSatAm:'스타리아',nameSatPm:'스타리아',phoneSatAm:'010-5562-8112',phoneSatPm:'010-5562-8112',driverSatAm:'노대호',helperSatAm:'현옥례',driverSatPm:'노대호',helperSatPm:'현옥례',satam:['08:00','바로 출발'],satpm:['15:10','16:05'],layoutSatAm:'1/2',layoutSatPm:'1/2'},
-  v4:{nameSatAm:'레이',nameSatPm:'레이',phoneSatAm:'010-8158-8112',phoneSatPm:'010-8158-8112',driverSatAm:'김효남',helperSatAm:'',driverSatPm:'강병곤',helperSatPm:'',satam:['7:30','2차'],satpm:['15:15','2차'],layoutSatAm:'1+2',layoutSatPm:'1+2'},
+  v4:{nameSatAm:'레이',nameSatPm:'레이',phoneSatAm:'010-8158-8112',phoneSatPm:'010-7917-8112',driverSatAm:'김효남',helperSatAm:'',driverSatPm:'강병곤',helperSatPm:'',satam:['7:30','2차'],satpm:['15:15','2차'],layoutSatAm:'1+2',layoutSatPm:'1+2'},
   v3:{nameSatAm:'레이',nameSatPm:'레이',phoneSatAm:'010-8158-8113',phoneSatPm:'010-7917-8112',driverSatAm:'강병곤',helperSatAm:'',driverSatPm:'김효남',helperSatPm:'',satam:['7:15','2차','3차','4차'],satpm:['15:20','2차'],layoutSatAm:'1+2/3+4',layoutSatPm:'1+2'}
  },
  orderSatAm:['v1','v4','v3'], orderSatPm:['v1','v3','v4'],
@@ -1157,26 +1317,39 @@ const SAT_TPL={
   'v4#1':[['윤복실','16:10'],['이금자','16:15'],['이종원','16:25']]
  }
 };
+const SAT_PC={"satam": {"김운태": ["양녕로 23길 9 102-1007", "010-4606-8594"], "김태훈": ["성대로25가길 12", "자부 010-8260-7472"], "장종만": ["국사봉6길 16 202호", "배우자 010-4704-0269"], "이성희": ["상도동 22-63", "딸 010-5311-3286"], "김부남": ["만양로 52 (노량진동)", "자녀 010-2511-4883"], "우원순": ["본동 극동강변 309호", "아들 010-7110-1604 ★경비실에서 대기"], "이만순": ["노량진로 32길 156 106-702호", "딸 010-2909-4158 자가송영"], "장동기": ["강남초등길 23-3", "아들 010-9149-8768"], "김종순": ["상도로53길70 203동 310호", "본인 010-3015-9416"], "명정순": ["가나교회 앞 상도로49길 24-1 301호", "본인 010-7549-1129"], "박일순": ["건영 106-506", "010-8925-6780"], "승성자": ["대방주공2단지 209동 1201호", "010-4741-1543"], "김예환": ["성원아파트 103동1201호", "010-8787-9566"], "유금순": ["장승배기로27가길 19", "010-7669-4969"], "장동호": ["상도로107 쌍용스윗닷홈 A 105-901", "배우자 010-2769-0043"], "강현구": ["흑석동롯데캐슬 105-903", "010-2899-8505"], "황용식": ["센트레빌2차 101-1505", "010-3048-8002"], "김두수": ["관악현대 110동 1203호", "아들 010-2243-7045 / 자부 010-8734-7045"], "윤복실": ["신반포로20 반포트리니원 106동 704호", "딸 010-9028-1404"], "이금자": ["동작대로 43길 23", "010-9780-0990"], "이종원": ["사당로 29다길 33 101호", "본인 010-5348-3740"], "박재원": ["대방동3길 7", "02-812-8952"], "김성석": ["대방동2길 36 신건드림원아파트 202호", "배우자 010-6293-0200"], "김찬회": ["대방동11길 24 보라매파크빌", "010-3279-3280"], "김재옥": ["상도로34길 59 태건하이츠103호", "배우자 010-6205-8791"], "김경례": ["상도롯데캐슬파크엘 103-2002 주차장입구→B5층", "아들 010-2901-9809"], "김성자": ["관악동부센트레빌 106-902", "010-3797-4722"], "이화자": ["만양로15길4 4층", "010-2243-7045"]}, "satpm": {"김운태": ["양녕로 23길 9 102-1007", "010-4606-8594"], "김태훈": ["성대로25가길 12", "자부 010-8260-7472"], "장종만": ["국사봉6길 16 202호", "배우자 010-4704-0269"], "이성희": ["상도동 22-63", "딸 010-5311-3286"], "김부남": ["만양로 52 (노량진동)", "자녀 010-2511-4883"], "우원순": ["본동 극동강변 309호", "아들 010-7110-1604 ★경비실에서 대기"], "이만순": ["노량진로 32길 156 106-702호", "딸 010-2909-4158"], "장동기": ["강남초등길 23-3", "아들 010-9149-8768"], "김종순": ["상도로53길70 203동 310호", "본인 010-3015-9416"], "명정순": ["가나교회 앞 상도로49길 24-1 301호", "딸 010-7549-1129"], "박일순": ["건영 106-506", "010-8925-6780"], "승성자": ["대방주공2단지 209동 1201호", "010-4741-1543"], "김예환": ["성원아파트 103동1201호", "010-8787-9566"], "유금순": ["장승배기로27가길 19", "010-7669-4969"], "장동호": ["상도로107 쌍용스윗닷홈 A 105-901", "배우자 010-2769-0043"], "강현구": ["흑석동롯데캐슬 105-903", "010-2899-8505"], "황용식": ["센트레빌2차 101-1505", "따님 010-2899-8505"], "김두수": ["관악현대 110동 1203호", "010-3048-8002"], "윤복실": ["신반포로20 반포트리니원 106동 704호", "딸 010-9028-1404"], "이금자": ["동작대로 43길 23", "처 010-9289-8752"], "이종원": ["사당로 29다길 33 101호", ""], "박재원": ["대방동3길 7", "02-812-8952"], "김성석": ["대방동2길 36 신건드림원아파트 202호", "배우자 010-6293-0200"], "김찬회": ["대방동11길 24 보라매파크빌", "010-3279-3280"], "김재옥": ["상도로34길 59 태건하이츠103호", "배우자 010-6205-8791"], "김경례": ["상도롯데캐슬파크엘 103-2002 주차장입구→B5층", "아들 010-2901-9809"], "김성자": ["관악동부센트레빌 106-902", "010-3797-4722"], "이화자": ["만양로15길4 4층", "010-2243-7045"], "허윤석": ["본동신동아 5동 602호", "02-815-3426"]}};
+const SAT_HL={satam:{"김부남":"o","김예환":"o"},satpm:{"김부남":"o","김찬회":"o","김예환":"o","윤복실":"y","이금자":"y"}};
 let satSeeding=false;
 function maybeSeedSat(){
-  if(satSeeding||readOnly||!db||!config||config.satSeeded||!eldersLoaded) return;
+  if(satSeeding||readOnly||!db||!config||config.satSeeded===3||!eldersLoaded) return;
   satSeeding=true;
+  if(config.satSeeded){ // 이미 적용된 곳: 주소·연락처·강조색·4682 오후 번호 보정
+    const byN={}; eldersArr().forEach(e=>{byN[(e.name||'').replace(/\s/g,'')]=e.id});
+    // 배차 없이 주소만 들어간 토요일 칸 정리
+    eldersArr().forEach(e=>{const d=e.def||{};let ch=false;const nd={...d};for(const K of ['satam','satpm']) if(nd[K]&&nd[K].k==null){delete nd[K];ch=true} if(ch) saveElder(e.id,{def:nd})});
+    for(const K of ['satam','satpm']) for(const nm in SAT_PC[K]){const id=byN[nm];if(!id)continue;const e=elders[id];const d={...(e.def||{})};
+      if(!d[K]||d[K].k==null) continue;
+      d[K]={...d[K],p:SAT_PC[K][nm][0],c:SAT_PC[K][nm][1]}; const pt={def:d}; if(SAT_HL[K][nm]) pt.hl={...(e.hl||{}),[K]:SAT_HL[K][nm]}; saveElder(id,pt);}
+    const vs=JSON.parse(JSON.stringify(vehicles())).map(v=>v.id==='v4'?{...v,phoneSatPm:'010-7917-8112'}:v);
+    config={...cfg(),vehicles:vs,satSeeded:3}; save('config/main',config); render(); return;
+  }
   const byName={}; eldersArr().forEach(e=>{const n=(e.name||'').replace(/\s/g,'');if(!byName[n])byName[n]=e.id});
   const patch={};
   for(const K of ['satam','satpm']) for(const k in SAT_TPL[K]) SAT_TPL[K][k].forEach(([nm,t],o)=>{
     let id=byName[nm];
     if(!id){id='e'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);byName[nm]=id;elders[id]={id,name:nm,days:[6],status:'이용',def:{}};}
     const e=patch[id]||(patch[id]={...elders[id],def:{...(elders[id].def||{})}});
-    e.def[K]={...(e.def[K]||{}),k,o,t};
+    e.def[K]={...(e.def[K]||{}),k,o,t,...(SAT_PC[K][nm]?{p:SAT_PC[K][nm][0],c:SAT_PC[K][nm][1]}:{})};
+    if(SAT_HL[K][nm]) e.hl={...(e.hl||{}),[K]:SAT_HL[K][nm]};
     const ds=new Set(e.days||[]); ds.add(6); e.days=[...ds].sort();
   });
   for(const id in patch) saveElder(id,patch[id]);
   const vs=JSON.parse(JSON.stringify(vehicles())).map(v=>SAT_TPL.cars[v.id]?{...v,...SAT_TPL.cars[v.id]}:v);
-  config={...cfg(),vehicles:vs,orderSatAm:SAT_TPL.orderSatAm,orderSatPm:SAT_TPL.orderSatPm,satSeeded:true};
+  config={...cfg(),vehicles:vs,orderSatAm:SAT_TPL.orderSatAm,orderSatPm:SAT_TPL.orderSatPm,satSeeded:3};
   save('config/main',config); render(); toast('토요일 기본표를 적용했습니다');
 }
 (async()=>{
-  const h=(location.hash||'').slice(1); if(['daily','elders','cars'].includes(h)) view=h;
+  const h=(location.hash||'').slice(1); if(['daily','elders','cars','staff'].includes(h)) view=h;
   if(SERVER&&await window.SDC.me()) authed=true;
   if(authed) showApp();
   const timer=setTimeout(()=>{document.getElementById('conn').textContent='연결 지연 중…'},10000);
@@ -1192,6 +1365,7 @@ function maybeSeedSat(){
     if(!q.metadata.fromCache){eldersLoaded=true;const c=document.getElementById('conn');c.innerHTML='<i class="dot"></i>'+(readOnly?'보기 전용 · 실시간':'실시간 반영 중');c.classList.add('live')}
     softRender(); maybeSeedSat();
   },e=>{clearTimeout(timer);eldersLoaded=true;document.getElementById('conn').textContent='연결 오류';render()});
+  try{db.collection('staff').onSnapshot(q=>{const m={};q.docs.forEach(d=>m[d.id]=d.data());staffDocs=m;softRender()},()=>{})}catch(e){}
   subscribeDay();
 })();
 </script>
