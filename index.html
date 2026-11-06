@@ -2,6 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>한강숲데이케어센터 송영표</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -293,6 +295,17 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 </div>
 <div id="toast"></div>
 
+<script>
+// ---------- 새 버전 자동 반영 (브라우저 캐시 때문에 옛 화면이 남지 않게) ----------
+const BUILD='20261106132515';
+async function checkUpdate(){
+  if(!/^https?:/.test(location.protocol)||location.hostname.endsWith('claude.ai')||location.hostname.includes('claudeusercontent')) return;
+  try{const t=await (await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'})).text();const m=/const BUILD='(\d+)'/.exec(t);
+    if(m&&m[1]!==BUILD){ if(document.getElementById('pop')||(document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName))) return;
+      location.reload()}}catch(e){}
+}
+setTimeout(checkUpdate,3000); setInterval(checkUpdate,60000); document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
