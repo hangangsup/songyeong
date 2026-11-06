@@ -475,6 +475,21 @@ function parseLayout(str,n){
   return rows;
 }
 
+function layoutStr(rows){return rows.map(r=>r.map(x=>(x.i+1)+(x.wrap!==7?`(${x.wrap})`:'')).join('+')).join('/')}
+// 회차 줄 이동: dir = up/down(줄 순서), left/right(같은 줄 안 순서), split(따로 한 줄), join(위 줄에 붙이기)
+function moveRun(v,S,ri,dir){
+  const K=SK(S),C=CK(S),n=(v[K]||[]).length; const rows=parseLayout(v['layout'+C],n);
+  const r=rows.findIndex(row=>row.some(x=>x.i===ri)); if(r<0) return false; const j=rows[r].findIndex(x=>x.i===ri);
+  if(dir==='up'){if(r===0)return false;[rows[r-1],rows[r]]=[rows[r],rows[r-1]]}
+  else if(dir==='down'){if(r===rows.length-1)return false;[rows[r+1],rows[r]]=[rows[r],rows[r+1]]}
+  else if(dir==='left'){if(j===0)return false;[rows[r][j-1],rows[r][j]]=[rows[r][j],rows[r][j-1]]}
+  else if(dir==='right'){if(j===rows[r].length-1)return false;[rows[r][j+1],rows[r][j]]=[rows[r][j],rows[r][j+1]]}
+  else if(dir==='split'){if(rows[r].length<2)return false;if(j===0){const rest=rows[r].splice(1);rows.splice(r+1,0,rest)}else{const [x]=rows[r].splice(j,1);rows.splice(r+1,0,[x])}}
+  else if(dir==='join'){if(r===0)return false;const [x]=rows[r].splice(j,1);rows[r-1].push(x);if(!rows[r].length)rows.splice(r,1)}
+  const vs=JSON.parse(JSON.stringify(vehicles())).map(w=>w.id===v.id?{...w,['layout'+C]:layoutStr(rows)}:w);
+  config={...cfg(),vehicles:vs}; save('config/main',config); render(); return true;
+}
+
 // 현재 화면 상태를 그날 문서로 고정 저장
 function commitDay(mut){
   const cur=computeDay();
@@ -696,13 +711,20 @@ function openCrewPop(el){
     ${v.assistant?`<div class="r"><label>보조</label><input id="cH" value="${esc(c.helper)}"></div>`:''}
     ${nRuns>1?`<label class="hint" style="display:flex;gap:6px;align-items:center;margin:2px 0 6px;color:var(--ink)"><input type="checkbox" id="cAll"> 이 차의 모든 회차(${nRuns}개)에 똑같이 적용</label>`:''}
     <div class="btns"><button class="primary" data-a="day">이 날만 바꾸기</button><button data-a="def">기본값으로 저장</button><button data-a="x">닫기</button></div>
-    <p class="hint" style="margin:8px 0 0">운전자는 <b>이 회차(${ri+1}회차)만</b> 바뀝니다. 출발 표시는 바꾸면 바로 모든 날에 적용돼요.</p>`;
+    ${nRuns>1?`<div class="r" style="margin-top:8px;flex-wrap:wrap;gap:4px"><label style="width:auto">줄 위치</label>
+      <button data-mvr="up" title="이 회차 줄을 한 칸 위로">▲ 위로</button><button data-mvr="down" title="이 회차 줄을 한 칸 아래로">▼ 아래로</button>
+      <button data-mvr="left" title="같은 줄 안에서 왼쪽으로">◀</button><button data-mvr="right" title="같은 줄 안에서 오른쪽으로">▶</button>
+      <button data-mvr="split" title="같은 줄에 있던 회차를 따로 한 줄로">따로 한 줄</button><button data-mvr="join" title="바로 위 줄 오른쪽에 붙이기">위 줄에 붙이기</button></div>`:''}
+    <p class="hint" style="margin:8px 0 0">줄 위치는 바꾸면 바로 모든 날에 적용돼요. 운전자는 <b>이 회차(${ri+1}회차)만</b> 바뀝니다. 출발 표시는 바꾸면 바로 모든 날에 적용돼요.</p>`;
   document.body.appendChild(p);
   const r=el.getBoundingClientRect(); p.style.left=Math.min(window.innerWidth-270,Math.max(10,r.left))+'px'; p.style.top=(r.bottom+8+220>window.innerHeight?Math.max(10,r.top-230):r.bottom+8)+'px';
   const val=()=>({driver:p.querySelector('#cD').value.trim(),helper:p.querySelector('#cH')?p.querySelector('#cH').value.trim():''});
   const tI=p.querySelector('#cT'); tI.onchange=()=>{const t=tI.value.trim(); if(!t) return;
     const K=SK(S);const vs=JSON.parse(JSON.stringify(vehicles())).map(w=>{if(w.id!==v.id)return w;const a=[...(w[K]||[])];a[ri]=t;return {...w,[K]:a}});
     config={...cfg(),vehicles:vs}; save('config/main',config); render(); toast('출발 표시를 바꿨습니다 (모든 날 적용)')};
+  p.querySelectorAll('[data-mvr]').forEach(b=>b.onclick=()=>{
+    if(!moveRun(v,S,ri,b.dataset.mvr)){toast('더 이상 옮길 수 없습니다');return}
+    const nb=document.querySelector(`.crewl[data-cv="${v.id}"][data-ri="${ri}"]`); if(nb) openCrewPop(nb)});
   p.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
     const a=b.dataset.a, x=val(); if(a==='x') return closePop(); closePop();
     const all=!!(p.querySelector('#cAll')&&p.querySelector('#cAll').checked), rk=v.id+'#'+ri;
