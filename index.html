@@ -529,7 +529,7 @@ function renderDaily(){
     <span class="spacer"></span>
     <button id="copyTxt">카톡 텍스트</button>
     <button id="reauto" title="이 날 이 시간대에 바꾼 배치를 지우고 기본표대로 다시 보여줍니다">기본표로 되돌리기</button>
-    <button id="saveDef" class="primary" title="오늘 오전·오후 배치를 어르신별 기본 배차로 저장">이 배치를 기본표로</button>
+    <button id="saveDef" class="primary" title="지금 보고 있는 시간대(오전 또는 오후)의 배치를 기본표로 저장하고, 이 날 이후 날짜에도 같은 배치를 적용합니다 (결석·출석은 그대로)">이 배치를 기본표로</button>
   </div>
   <div class="summary">
     <span>이용 <b>${att.length}명</b></span><span>결석 <b>${absent.length}명</b></span>
@@ -867,14 +867,22 @@ function bindDaily(){
   $('saveDef').onclick=saveAsDefault;
   $('copyTxt').onclick=copyText;
 }
-function saveAsDefault(){
-  const {am,pm}=computeDay(); let cnt=0;
-  const touched=new Set();
-  for(const [S,R] of [['am',am],['pm',pm]]) for(const k in R.lists) R.lists[k].forEach((id,o)=>{
-    const e=elders[id]; if(!e) return; const K=SK(S);const od=(elders[id].def||{})[K]||{}; elders[id]={...elders[id],def:{...(elders[id].def||{}),[K]:{...od,k,o,t:timeOf(S,id)}}}; touched.add(id);
+async function saveAsDefault(){
+  const S=session, R=computeDay()[S], K=SK(S); let cnt=0; const touched=new Set();
+  for(const k in R.lists) R.lists[k].forEach((id,o)=>{
+    const e=elders[id]; if(!e) return; const od=(e.def||{})[K]||{}; elders[id]={...e,def:{...(e.def||{}),[K]:{...od,k,o,t:timeOf(S,id)}}}; touched.add(id);
   });
   touched.forEach(id=>{const e={...elders[id]};delete e.id;save('elders/'+id,e);cnt++});
-  toast(`${cnt}명의 기본 배차를 저장했습니다`);
+  // 이 날 이후 같은 종류(평일/토요일)의 날짜에 따로 저장된 이 시간대 배치를 지워서 새 기본표가 보이게 (결석·추가·운전자는 그대로)
+  let fixed=0;
+  try{
+    const docs=await new Promise((res,rej)=>{let un=null;un=db.collection('days').onSnapshot(q=>{res(q.docs);setTimeout(()=>un&&un(),0)},rej)});
+    const sat=wd(curDate)===6;
+    for(const d of docs){const id=d.id; if(!/^\d{4}-\d{2}-\d{2}$/.test(id)||id<=curDate||(wd(id)===6)!==sat) continue;
+      const n=JSON.parse(JSON.stringify(d.data()||{})); if(!n[S]&&!(n.times&&n.times[S]&&Object.keys(n.times[S]).length)) continue;
+      delete n[S]; if(n.times) n.times[S]={}; n.updatedAt=new Date().toISOString(); save('days/'+id,n); fixed++}
+  }catch(e){}
+  toast(`${S==='am'?'오전':'오후'} ${cnt}명 배치를 기본표로 저장했습니다${fixed?` · 이후 ${fixed}일 배치도 새 기본표로 맞춤`:''}`);
 }
 async function copyText(){
   const {am,pm}=computeDay(); const w=DOW[wd(curDate)];
