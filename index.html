@@ -453,10 +453,15 @@ const CAP={am:'Am',pm:'Pm',satam:'SatAm',satpm:'SatPm'};
 function SK(S,date=curDate){return wd(date)===6?'sat'+S:S}
 function CK(S){return CAP[SK(S)]}
 function vname(v,S){return (wd(curDate)===6&&v['name'+CK(S)])||v.name}
-function crewOf(v,S=session){
-  const c=(dayDoc&&dayDoc.crew&&dayDoc.crew[S]&&dayDoc.crew[S][v.id])||{};
+// 운전자 우선순위: 그날 이 회차 > 그날 차 전체 > 기본 이 회차 > 기본 차 전체
+function crewOf(v,S=session,ri=null){
+  const dc=(dayDoc&&dayDoc.crew&&dayDoc.crew[S])||{};
+  const cr=ri!=null?(dc[v.id+'#'+ri]||{}):{}, c=dc[v.id]||{};
+  const rd=ri!=null?((v['runCrew'+CK(S)]||{})[ri]||{}):{};
   const dd=v['driver'+CK(S)], dh=v['helper'+CK(S)];
-  const sat=wd(curDate)===6;return {driver:c.driver??(dd!=null&&dd!==''?dd:(sat?'':(v.driver||''))),helper:c.helper??(dh!=null&&dh!==''?dh:(sat?'':(v.helper||'')))};
+  const sat=wd(curDate)===6;
+  const bd=dd!=null&&dd!==''?dd:(sat?'':(v.driver||'')), bh=dh!=null&&dh!==''?dh:(sat?'':(v.helper||''));
+  return {driver:cr.driver??c.driver??(rd.driver!=null?rd.driver:bd),helper:cr.helper??c.helper??(rd.helper!=null?rd.helper:bh)};
 }
 // "1+3/2+4", "1(4)/2(4)" → [[{i,wrap}],...]  (회차 번호는 1부터)
 function parseLayout(str,n){
@@ -582,7 +587,6 @@ function renderSheet(R,att){
     <span class="sh-box c1 ${S}">${w===6||w===0?'주말':'평일'}</span><span class="sh-box c2 ${S}">${S==='am'?'오 전':'오 후'}</span><span class="sh-box tot ${S}">${placedTotal}</span></div>`;
   for(const v of vehiclesFor(S)){
     const runs=v[SK(S)]||[]; if(!runs.length) continue;
-    const c=crewOf(v), crew=[c.driver,v.assistant?c.helper:''].filter(Boolean).join('/'), crewH=crewHtml([c.driver,v.assistant?c.helper:'']);
     let cnt=0; runs.forEach((t,i)=>cnt+=(R.lists[v.id+'#'+i]||[]).length);
     const ph=v['phone'+CK(S)]??(wd(curDate)===6?'':(v.phone??''));
     const perRun=runs.map((t,i)=>(R.lists[v.id+'#'+i]||[]).length);
@@ -617,6 +621,7 @@ function renderSheet(R,att){
       row.forEach((sg,si)=>{
         const t=runs[sg.i]||'', lines=Math.max(1,Math.ceil(sg.items.length/sg.wdt));
         const lc=si===0?1:Math.max(colEnd+1,8-sg.wdt), bc=lc+1;
+        const c=crewOf(v,S,sg.i), crewH=crewHtml([c.driver,v.assistant?c.helper:'']);
         cells+=`<div class="${si===0?'rl':'rl2'} crewl" data-cv="${v.id}" data-ri="${sg.i}" title="눌러서 출발·운전자 수정" style="grid-column:${lc};grid-row:1 / span ${lines}"><b>${esc(runLabel(t))}</b><span>${crewH||'<i style="color:#bbb">운전자</i>'}</span></div>`;
         sg.items.forEach((x,j)=>{cells+=boxHtml(x.id,x.st,v.id+'#'+sg.i,`grid-column:${bc+(j%sg.wdt)};grid-row:${1+Math.floor(j/sg.wdt)}`)});
         colEnd=bc+sg.wdt-1;
@@ -682,15 +687,16 @@ function openPop(bx){
 document.addEventListener('mousedown',ev=>{if(!ev.target.closest('.srch')&&searchQ){searchQ='';const i=document.getElementById('srch');if(i)i.value='';renderSearch()}
   const p=document.getElementById('pop');if(p&&!p.contains(ev.target)&&!ev.target.closest('.bx')&&!ev.target.closest('.crewl')&&!ev.target.closest('[data-car]'))closePop()});
 function openCrewPop(el){
-  closePop(); const v=vById(el.dataset.cv), S=session, c=crewOf(v,S), ri=+el.dataset.ri; if(!v) return;
+  closePop(); const v=vById(el.dataset.cv), S=session, ri=+el.dataset.ri; if(!v) return; const c=crewOf(v,S,ri), nRuns=(v[SK(S)]||[]).length;
   const p=document.createElement('div'); p.id='pop';
   p.innerHTML=`<h4>${esc(vname(v,S))} ${wd(curDate)===6?'토요일 ':''}${S==='am'?'오전':'오후'} ${ri+1}회차</h4>
     <div class="r"><label>출발</label><input id="cT" value="${esc((v[SK(S)]||[])[ri]||'')}" placeholder="7:30 또는 2차"></div>
     ${[c.driver,v.assistant?c.helper:''].filter(x=>x&&offReason(x)).map(x=>`<p class="hint" style="color:#d00;margin:0 0 6px">${esc(x)}: 출근표상 ${esc(offReason(x))} → 변경필요</p>`).join('')}
     <div class="r"><label>운전</label><input id="cD" value="${esc(c.driver)}"></div>
     ${v.assistant?`<div class="r"><label>보조</label><input id="cH" value="${esc(c.helper)}"></div>`:''}
+    ${nRuns>1?`<label class="hint" style="display:flex;gap:6px;align-items:center;margin:2px 0 6px;color:var(--ink)"><input type="checkbox" id="cAll"> 이 차의 모든 회차(${nRuns}개)에 똑같이 적용</label>`:''}
     <div class="btns"><button class="primary" data-a="day">이 날만 바꾸기</button><button data-a="def">기본값으로 저장</button><button data-a="x">닫기</button></div>
-    <p class="hint" style="margin:8px 0 0">출발 표시는 바꾸면 바로 모든 날에 적용돼요. 운전자는 '이 날만' 또는 '기본값'을 골라 저장하세요.</p>`;
+    <p class="hint" style="margin:8px 0 0">운전자는 <b>이 회차(${ri+1}회차)만</b> 바뀝니다. 출발 표시는 바꾸면 바로 모든 날에 적용돼요.</p>`;
   document.body.appendChild(p);
   const r=el.getBoundingClientRect(); p.style.left=Math.min(window.innerWidth-270,Math.max(10,r.left))+'px'; p.style.top=(r.bottom+8+220>window.innerHeight?Math.max(10,r.top-230):r.bottom+8)+'px';
   const val=()=>({driver:p.querySelector('#cD').value.trim(),helper:p.querySelector('#cH')?p.querySelector('#cH').value.trim():''});
@@ -699,13 +705,18 @@ function openCrewPop(el){
     config={...cfg(),vehicles:vs}; save('config/main',config); render(); toast('출발 표시를 바꿨습니다 (모든 날 적용)')};
   p.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
     const a=b.dataset.a, x=val(); if(a==='x') return closePop(); closePop();
-    if(a==='day') return commitDay(n=>{n.crew[S][v.id]={driver:x.driver,helper:x.helper}});
+    const all=!!(p.querySelector('#cAll')&&p.querySelector('#cAll').checked), rk=v.id+'#'+ri;
+    const dropRuns=o=>{for(const k of Object.keys(o)) if(k.startsWith(v.id+'#')) delete o[k]};
+    if(a==='day') return commitDay(n=>{if(all){dropRuns(n.crew[S]);n.crew[S][v.id]={driver:x.driver,helper:x.helper}}else n.crew[S][rk]={driver:x.driver,helper:x.helper}});
     const C=CK(S);
-    const vs=JSON.parse(JSON.stringify(vehicles())).map(w=>w.id===v.id?{...w,['driver'+C]:x.driver,['helper'+C]:x.helper}:w);
+    const vs=JSON.parse(JSON.stringify(vehicles())).map(w=>{if(w.id!==v.id)return w;
+      if(all) return {...w,['driver'+C]:x.driver,['helper'+C]:x.helper,['runCrew'+C]:{}};
+      const rc={...(w['runCrew'+C]||{})}; rc[ri]={driver:x.driver,helper:x.helper}; return {...w,['runCrew'+C]:rc}});
     config={...cfg(),vehicles:vs}; save('config/main',config);
     // 그날 따로 바꾼 값이 있으면 지워서 기본값이 보이게
-    if(dayDoc&&dayDoc.crew&&dayDoc.crew[S]&&dayDoc.crew[S][v.id]) commitDay(n=>{delete n.crew[S][v.id]}); else render();
-    toast('기본 운전자를 저장했습니다');
+    const dc=(dayDoc&&dayDoc.crew&&dayDoc.crew[S])||{};
+    if(dc[v.id]||dc[rk]||(all&&Object.keys(dc).some(k=>k.startsWith(v.id+'#')))) commitDay(n=>{if(all){dropRuns(n.crew[S]);delete n.crew[S][v.id]}else{delete n.crew[S][rk]; if(n.crew[S][v.id]){for(let i=0;i<nRuns;i++) if(i!==ri&&!n.crew[S][v.id+'#'+i]) n.crew[S][v.id+'#'+i]={...n.crew[S][v.id]}; delete n.crew[S][v.id]}}}); else render();
+    toast(all?'모든 회차 기본 운전자를 저장했습니다':`${ri+1}회차 기본 운전자를 저장했습니다`);
   });
 }
 function openCarPop(el){
@@ -871,11 +882,12 @@ async function copyText(){
   for(const [S,R,label] of [['am',am,'오전 송영'],['pm',pm,'오후 송영']]){
     t+=`\n■ ${label}\n`;
     for(const v of vehiclesFor(S)){
-      const c=crewOf(v,S);
+      const c=crewOf(v,S,0);
       const nd=x=>x&&offReason(x)?'변경필요('+x+' '+offReason(x)+')':x;
       t+=`\n${vname(v,S)}${v.plate?' ('+v.plate+')':''} - 운전 ${nd(c.driver)||'미정'}${v.assistant?' / 보조 '+(nd(c.helper)||'미정'):''}\n`;
-      (v[SK(S)]||[]).forEach((tm,i)=>{const L=R.lists[v.id+'#'+i]||[]; if(!L.length) return;
-        t+=` ${isTime(tm)?(i+1)+'회차 '+tm:tm}: `+L.map((id,n)=>`${n+1}.${elders[id]?.name||''}`).join(' ')+'\n'});
+      (v[SK(S)]||[]).forEach((tm,i)=>{const L=R.lists[v.id+'#'+i]||[]; if(!L.length) return; const ci=crewOf(v,S,i);
+        const cs=(ci.driver!==c.driver||ci.helper!==c.helper)?` [운전 ${nd(ci.driver)||'미정'}${v.assistant?' / 보조 '+(nd(ci.helper)||'미정'):''}]`:'';
+        t+=` ${isTime(tm)?(i+1)+'회차 '+tm:tm}${cs}: `+L.map((id,n)=>`${n+1}.${elders[id]?.name||''}`).join(' ')+'\n'});
     }
     if(R.unassigned.length) t+=`미배정: ${R.unassigned.map(id=>elders[id]?.name).join(', ')}\n`;
   }
@@ -1203,8 +1215,10 @@ function staffCarRoles(name,date){
   for(const S of ['am','pm']){const K=w===6?'sat'+S:S,C=CAP[K];
     for(const v of vehicles()){if(!(v[K]||[]).length)continue;
       const dd=v['driver'+C]||(w===6?'':v.driver||''),dh=v['helper'+C]||(w===6?'':v.helper||'');
-      if(normName(dd)===name) res.push(`${(w===6&&v['name'+C])||v.name} ${S==='am'?'오전':'오후'} 운전`);
-      if(v.assistant&&normName(dh)===name) res.push(`${(w===6&&v['name'+C])||v.name} ${S==='am'?'오전':'오후'} 보조`)}}
+      const rc=v['runCrew'+C]||{}, vn=(w===6&&v['name'+C])||v.name;
+      (v[K]||[]).forEach((t,i)=>{const r=rc[i]||{};const d1=r.driver!=null?r.driver:dd,h1=r.helper!=null?r.helper:dh;
+        if(normName(d1)===name) res.push(`${vn} ${S==='am'?'오전':'오후'} ${i+1}회차 운전`);
+        if(v.assistant&&normName(h1)===name) res.push(`${vn} ${S==='am'?'오전':'오후'} ${i+1}회차 보조`)})}}
   return res;
 }
 function renderStaff(){
