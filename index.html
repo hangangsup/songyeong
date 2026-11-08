@@ -207,6 +207,14 @@ table.stt{border-collapse:collapse;font-size:12px;white-space:nowrap}
 .sheet.exporting .sh-un{display:none}
 .sheet.exporting .crewl i{visibility:hidden}
 /* 편집 팝업 */
+#shareBox{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:12px}
+#shareBox .sb-in{background:#fff;border-radius:14px;padding:14px;max-width:820px;width:100%}
+#shareBox .sb-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+#shareBox .sb-b{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+#shareBox .sb-b .primary,#shareBox .sb-b .btn{padding:10px 16px;font-size:15px;border-radius:10px;text-decoration:none}
+#shareBox .btn{border:1px solid var(--line);color:var(--ink);background:#fff}
+#shareBox .sb-m{font-size:13.5px;color:#444;margin:6px 0;line-height:1.5}
+#shareBox img{width:100%;border:1px solid var(--line);border-radius:8px}
 #pop{position:fixed;z-index:40;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:12px;width:300px;font-size:14px}
 #pop h4{margin:0 0 8px;font-size:16px}
 #pop .r{display:flex;gap:6px;align-items:center;margin-bottom:8px}
@@ -287,7 +295,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
       <button data-v="cars">차량·시간 설정</button>
       <button data-v="staff">직원출근표</button>
     </nav>
-    <span class="hdbtns" id="hdExport"><button id="hPrint">🖨 출력 (A4)</button><button id="hJpg">JPG 저장</button><button id="hCopy">JPG 복사</button></span>
+    <span class="hdbtns" id="hdExport"><button id="hPrint">🖨 출력 (A4)</button><button id="hJpg">JPG 저장</button><button id="hCopy">JPG 복사</button><button id="hShare">📤 공유</button></span>
     <span class="status" id="conn"><i class="dot"></i>연결 중…</span>
     <button id="logout">로그아웃</button>
   </div></header>
@@ -297,7 +305,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <script>
 // ---------- 새 버전 자동 반영 (브라우저 캐시 때문에 옛 화면이 남지 않게) ----------
-const BUILD='20261108185155';
+const BUILD='20261108190233';
 async function checkUpdate(){
   if(!/^https?:/.test(location.protocol)||location.hostname.endsWith('claude.ai')||location.hostname.includes('claudeusercontent')) return;
   try{const t=await (await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'})).text();const m=/const BUILD='(\d+)'/.exec(t);
@@ -809,6 +817,35 @@ function copyJpg(){
   navigator.clipboard.write([new ClipboardItem({'image/png':blobP})])
     .then(()=>toast('복사했습니다. 카톡 등에 붙여넣기(Ctrl+V) 하세요'))
     .catch(()=>toast('이 화면에서는 이미지 복사가 막혀 있습니다. JPG 저장을 써 주세요'));
+}
+// 휴대폰 공유하기 (카톡 등으로 바로 보내기)
+let shareFile=null;
+function inKakao(){return /KAKAOTALK/i.test(navigator.userAgent)}
+async function doShare(f){
+  if(!(navigator.canShare&&navigator.canShare({files:[f]}))) return 'unsupported';
+  try{await navigator.share({files:[f],title:f.name});return 'ok'}
+  catch(e){return e&&e.name==='AbortError'?'cancel':(e&&e.name==='NotAllowedError'?'again':'fail')}
+}
+function showShareBox(f,msg){
+  document.getElementById('shareBox')?.remove();
+  const url=URL.createObjectURL(f), d=document.createElement('div'); d.id='shareBox';
+  d.innerHTML=`<div class="sb-in"><div class="sb-h"><b>송영표 이미지</b><button id="sbX">닫기</button></div>
+    ${msg?`<p class="sb-m">${msg}</p>`:''}
+    <div class="sb-b">${navigator.canShare&&navigator.canShare({files:[f]})?'<button class="primary" id="sbS">📤 카톡 등으로 공유</button>':''}<a class="btn" id="sbD" href="${url}" download="${esc(f.name)}">이미지 저장</a></div>
+    <img src="${url}" alt="송영표"><p class="sb-m">이미지를 <b>길게 눌러도</b> 저장·공유할 수 있습니다.</p></div>`;
+  document.body.appendChild(d);
+  d.querySelector('#sbX').onclick=()=>{d.remove();URL.revokeObjectURL(url)};
+  const sb=d.querySelector('#sbS'); if(sb) sb.onclick=async()=>{const r=await doShare(f); if(r==='ok'){d.remove();URL.revokeObjectURL(url)}};
+}
+async function shareJpg(){
+  try{ toast('이미지 만드는 중…'); const c=await captureSheet();
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.92));
+    shareFile=new File([blob],fileBase()+'.jpg',{type:'image/jpeg'});
+    const r=await doShare(shareFile);
+    if(r==='ok'||r==='cancel') return;
+    if(r==='again') return showShareBox(shareFile,'준비됐습니다. 아래 <b>공유</b> 버튼을 눌러 카톡방을 고르세요.');
+    showShareBox(shareFile, inKakao()?'카카오톡 안의 브라우저에서는 바로 공유가 안 됩니다. 아래 이미지를 <b>길게 눌러 저장</b>하거나, 오른쪽 위 <b>⋮(또는 ∨) → 다른 브라우저로 열기</b>로 크롬에서 열면 바로 공유됩니다.':'이 브라우저는 바로 공유를 지원하지 않습니다. 이미지를 저장한 뒤 카톡에서 보내 주세요.');
+  }catch(e){toast(e.message||'이미지 변환 실패')}
 }
 async function saveBlob(blob,name){
   if(SERVER){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);toast('저장했습니다');return}
@@ -1337,6 +1374,7 @@ function printSheet(){
 }
 document.getElementById('hJpg').onclick=()=>{if(view!=='daily'){view='daily';render()}exportJpg()};
 document.getElementById('hCopy').onclick=()=>{if(view!=='daily'){view='daily';render()}copyJpg()};
+document.getElementById('hShare').onclick=()=>{if(view!=='daily'){view='daily';render()}shareJpg()};
 function setDate(d){curDate=d;dayDoc=null;dayLoaded=false;subscribeDay();render()}
 
 // ---------- 저장소 연결 ----------
