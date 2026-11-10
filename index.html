@@ -157,7 +157,8 @@ table.stt{border-collapse:collapse;font-size:12px;white-space:nowrap}
 .sh-box{border:1.5px solid #000;min-width:92px;text-align:center;padding:3px 8px;font-size:14px;font-weight:500}
 .sh-box.c1{background:#fde2d2;border-color:#d55}
 .sh-box.c2{background:#fde2d2}
-.sh-box.tot{min-width:110px;font-weight:700;font-size:17px}
+.sh-box.tot{min-width:110px;font-weight:800;font-size:30px;line-height:1.05;padding:1px 14px;align-self:stretch;display:flex;align-items:center;justify-content:center}
+.sheet.tight .sh-box.tot{padding:0 14px}
 .sh-box.c1.am,.sh-box.c2.am{background:#d9ead3;border-color:#6a9a5b}.sh-box.tot.am{border-color:#e00;color:#e00}
 .sh-car{display:flex;align-items:center;margin:var(--cm) 0 4px;border-top:0}
 .sh-car{gap:8px;border-bottom:2px solid #3aa0c8;padding-bottom:3px}
@@ -305,7 +306,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <script>
 // ---------- 새 버전 자동 반영 (브라우저 캐시 때문에 옛 화면이 남지 않게) ----------
-const BUILD='20261108190233';
+const BUILD='20261110102253';
 async function checkUpdate(){
   if(!/^https?:/.test(location.protocol)||location.hostname.endsWith('claude.ai')||location.hostname.includes('claudeusercontent')) return;
   try{const t=await (await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'})).text();const m=/const BUILD='(\d+)'/.exec(t);
