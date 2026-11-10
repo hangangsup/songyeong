@@ -122,6 +122,11 @@ tr.off td{opacity:.5}
 .hint{font-size:13px;color:var(--sub);margin:0 0 12px;line-height:1.6}
 .satbox{border:1px dashed var(--line);border-radius:8px;padding:6px 8px;margin:6px 0}.satbox summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--ink)}
 .need{color:#e00;font-weight:700}
+.stt td.stc{cursor:pointer}.stt td.stc:hover{box-shadow:inset 0 0 0 2px #2a62c9}
+.stopts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.stopts button{padding:9px 0;font-size:14px;border-radius:8px}
+.stopts .sto-x{color:#d00}.stopts .sto-y{background:#ffe1e1;color:#d00;font-weight:700}.stopts .sto-h{background:#fff0d6;color:#b36b00}.stopts .sto-o{color:#333}
+.stopts button.on{outline:2px solid #2a62c9}
 .stw{overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff;max-height:70vh}
 table.stt{border-collapse:collapse;font-size:12px;white-space:nowrap}
 .stt th,.stt td{border:1px solid #e3e6ea;padding:0;text-align:center;min-width:26px;height:26px}
@@ -306,7 +311,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <script>
 // ---------- 새 버전 자동 반영 (브라우저 캐시 때문에 옛 화면이 남지 않게) ----------
-const BUILD='20261110102253';
+const BUILD='20261110103218';
 async function checkUpdate(){
   if(!/^https?:/.test(location.protocol)||location.hostname.endsWith('claude.ai')||location.hostname.includes('claudeusercontent')) return;
   try{const t=await (await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'})).text();const m=/const BUILD='(\d+)'/.exec(t);
@@ -1325,11 +1330,29 @@ function renderStaff(){
   for(const p of D.staff||[]){h+=`<tr><td class="nm">${esc(p.label||p.name)}</td><td class="rl">${esc(p.role||'')}</td>`;
     for(let d=1;d<=nd;d++){const v=(p.d||{})[String(d)]||'',ds=`${staffYm}-${String(d).padStart(2,'0')}`;
       const cls=v==='X'?'x':/연차|^연$/.test(v)?'yc':/반차/.test(v)?'hc':v==='O'?'o':'';
-      h+=`<td class="${cls} ${ds===curDate?'today':''}" title="${esc(p.name)} ${d}일 ${v==='X'?'휴무':esc(v)}">${v==='X'?'':esc(v==='연차'?'연차':v)}</td>`}
+      h+=`<td class="${cls} ${ds===curDate?'today':''} stc" data-sp="${esc(p.name)}" data-sd="${d}" title="${esc(p.name)} ${d}일 ${v==='X'?'휴무':esc(v)} — 눌러서 수정">${v==='X'?'':esc(v==='연차'?'연차':v)}</td>`}
     h+=`</tr>`}
-  return h+`</tbody></table></div><p class="hint">빨간 사선 = 휴무, 분홍 = 연차(결석), 주황 = 반차(출근으로 봄). 파란 테두리는 송영표에서 보고 있는 날짜입니다.</p>`;
+  return h+`</tbody></table></div><p class="hint">칸을 누르면 <b>출근 / 휴무 / 연차 / 반차 / 비움</b>으로 바로 고칠 수 있습니다. 빨간 사선 = 휴무, 분홍 = 연차(결석), 주황 = 반차(출근으로 봄). 파란 테두리는 송영표에서 보고 있는 날짜입니다.</p>`;
+}
+function openStaffPop(td){
+  closePop(); const name=td.dataset.sp, day=td.dataset.sd, D=staffDocs[staffYm]; if(!D) return;
+  const ps=(D.staff||[]).find(x=>x.name===name); if(!ps) return; const cur=(ps.d||{})[day]||'';
+  const opts=[['O','출근'],['X','휴무'],['연차','연차'],['반차','반차'],['','비움']];
+  const p=document.createElement('div'); p.id='pop'; p.style.width='250px';
+  p.innerHTML=`<h4>${esc(ps.label||name)} · ${+staffYm.slice(5)}월 ${day}일(${DOW[wd(`${staffYm}-${String(day).padStart(2,'0')}`)]})</h4>
+    <div class="stopts">${opts.map(([v,l])=>`<button data-sv="${v}" class="sto-${v==='X'?'x':v==='연차'?'y':v==='반차'?'h':v==='O'?'o':'n'} ${cur===v?'on':''}">${l}</button>`).join('')}</div>
+    <div class="r" style="margin-top:8px"><label style="width:auto">직접 입력</label><input id="stTxt" value="${esc(cur==='X'?'':cur)}" placeholder="예: 오전반차" style="flex:1"><button id="stOk">적용</button></div>
+    <p class="hint" style="margin:6px 0 0">휴무·연차로 바꾸면 그날 송영표에 바로 "변경필요"가 반영됩니다.</p>`;
+  document.body.appendChild(p);
+  const r=td.getBoundingClientRect(); p.style.left=Math.max(10,Math.min(window.innerWidth-260,r.left-100))+'px'; const ph=p.offsetHeight||230; p.style.top=(r.bottom+6+ph>window.innerHeight&&r.top-ph-6>0?r.top-ph-6:Math.min(window.innerHeight-ph-6,r.bottom+6))+'px';
+  const setV=v=>{const nd=JSON.parse(JSON.stringify(D)); const t=nd.staff.find(x=>x.name===name); t.d=t.d||{}; if(v) t.d[day]=v; else delete t.d[day];
+    nd.editedAt=new Date().toISOString(); staffDocs[staffYm]=nd; save('staff/'+staffYm,nd); closePop(); render();
+    toast(`${name} ${day}일 → ${v==='X'?'휴무':v||'비움'}`)};
+  p.querySelectorAll('[data-sv]').forEach(b=>b.onclick=()=>setV(b.dataset.sv));
+  p.querySelector('#stOk').onclick=()=>{const v=p.querySelector('#stTxt').value.trim(); setV(v==='휴무'?'X':v==='출근'?'O':v)};
 }
 function bindStaff(){
+  document.querySelectorAll('td.stc').forEach(td=>td.onclick=e=>{e.stopPropagation();openStaffPop(td)});
   const f=document.getElementById('stIn'); if(f) f.onchange=async()=>{const x=f.files[0];f.value='';if(!x)return;const m=document.getElementById('stMsg');m.textContent='읽는 중…';
     try{const list=await parseStaffXlsx(x); if(!list.length){m.textContent='근무일정표 형식의 시트를 찾지 못했습니다';return}
       for(const d of list){staffDocs[d.ym]=d;save('staff/'+d.ym,d)}
