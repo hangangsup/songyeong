@@ -327,7 +327,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <script>
 // ---------- 새 버전 자동 반영 (브라우저 캐시 때문에 옛 화면이 남지 않게) ----------
-const BUILD='20261114160018';
+const BUILD='20261114160129';
 async function checkUpdate(){
   if(!/^https?:/.test(location.protocol)||location.hostname.endsWith('claude.ai')||location.hostname.includes('claudeusercontent')) return;
   try{const t=await (await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'})).text();const m=/const BUILD='(\d+)'/.exec(t);
@@ -339,8 +339,8 @@ setTimeout(checkUpdate,3000); setInterval(checkUpdate,60000); document.addEventL
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=20261114160018"></script>
-<script src="fb-shim.js?v=20261114160018"></script>
+<script src="firebase-config.js?v=20261114160129"></script>
+<script src="fb-shim.js?v=20261114160129"></script>
 <script>
 // ---------- 로그인 ----------
 const LOGIN_ID='supdc0301', LOGIN_PW='supdc0301!';
@@ -1306,10 +1306,13 @@ async function parseStaffXlsx(file){
     const first=Math.min(...Object.keys(dayCols).map(Number));
     // 이름 칸: 날짜 왼쪽 칸 중 값이 가장 다양한 칸
     const cand={};for(const r in rows) if(+r>hr+1) for(const c in rows[r]) if(+c<first&&/^[가-힣]{2,5}(\(.*\))?$/.test(rows[r][c].v)) (cand[c]=cand[c]||new Set()).add(rows[r][c].v);
-    const nc=+Object.keys(cand).sort((a,b)=>cand[b].size-cand[a].size)[0]; if(!nc) continue;
+    // 머리줄에 '이름' 칸이 있으면 그 칸을 쓰고, 없으면 값이 가장 다양한 칸
+    const hn=Object.keys(rows[hr]).find(c=>+c<first&&/^\s*(이름|성명)\s*$/.test(rows[hr][c].v));
+    const nc=hn?+hn:+Object.keys(cand).sort((a,b)=>cand[b].size-cand[a].size)[0]; if(!nc) continue;
     const staff=[];let team='';
     for(const r of Object.keys(rows).map(Number).filter(r=>r>hr+1).sort((a,b)=>a-b)){
-      const R=rows[r]; if(R[nc-1]&&R[nc-1].v) team=R[nc-1].v;
+      const R=rows[r]; if(Object.values(R).some(c=>/적는\s*법|작성\s*방법/.test(c.v))) break;
+      if(R[nc-1]&&R[nc-1].v) team=R[nc-1].v;
       const raw=(R[nc]||{}).v||''; if(!/^[가-힣]{2,5}(\(.*\))?$/.test(raw)) continue;
       const d={}; for(const c in dayCols){const cell=R[c]; if(!cell) continue; let val=cell.x?'X':(/\n/.test(cell.v)?'':cell.v); if(/^(휴무|휴|x|X|\/|／)$/.test(val)) val='X'; else if(/^(출근|o|ㅇ|○)$/i.test(val)) val='O'; if(val) d[dayCols[c]]=val}
       staff.push({name:normName(raw),label:raw,role:(R[nc+1]||{}).v||'',team,d});
