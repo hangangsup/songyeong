@@ -5,7 +5,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>한강숲데이케어센터 송영표</title>
+<title>숲 송영표 관리시스템</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -281,8 +281,8 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <div id="login">
   <form class="login-box" id="loginForm" autocomplete="off">
-    <h1 id="loginTitle">한강숲데이케어센터</h1>
-    <p>송영표 관리</p>
+    <h1 id="loginTitle">인생의 두번째 학교, 숲</h1>
+    <p>송영표 관리시스템</p>
     <label for="uid">아이디</label>
     <input id="uid" autocomplete="username">
     <label for="upw">비밀번호</label>
@@ -311,7 +311,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <script>
 // ---------- 새 버전 자동 반영 (브라우저 캐시 때문에 옛 화면이 남지 않게) ----------
-const BUILD='20261114153754';
+const BUILD='20261114154450';
 async function checkUpdate(){
   if(!/^https?:/.test(location.protocol)||location.hostname.endsWith('claude.ai')||location.hostname.includes('claudeusercontent')) return;
   try{const t=await (await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'})).text();const m=/const BUILD='(\d+)'/.exec(t);
@@ -323,15 +323,14 @@ setTimeout(checkUpdate,3000); setInterval(checkUpdate,60000); document.addEventL
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js"></script>
-<script src="fb-shim.js"></script>
+<script src="firebase-config.js?v=20261114154450"></script>
+<script src="fb-shim.js?v=20261114154450"></script>
 <script>
 // ---------- 로그인 ----------
 const LOGIN_ID='supdc0301', LOGIN_PW='supdc0301!';
 function getAuth(){try{return sessionStorage.getItem('sdc_auth')==='1'}catch(e){return false}}
 function setAuth(v){try{v?sessionStorage.setItem('sdc_auth','1'):sessionStorage.removeItem('sdc_auth')}catch(e){}}
 const SERVER=!!window.SDC_SERVER;   // 자체 서버 버전이면 서버가 로그인을 확인
-if(SERVER&&window.CENTERS){const t=document.getElementById('loginTitle');if(t)t.textContent='데이케어센터 송영표';const sub=t&&t.nextElementSibling;if(sub)sub.textContent='한강숲 · 더숲 · 숲 — 지점 아이디로 로그인';}
 let authed=SERVER?false:getAuth();
 document.getElementById('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
