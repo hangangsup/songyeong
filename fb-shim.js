@@ -31,14 +31,21 @@
         return false;
       }
     },
-    async logout() { await auth.signOut(); },
+    async logout() { await auth.signOut(); window.CENTER = null; setTimeout(() => location.reload(), 50); },
     me: () => first,
   };
 
-  const dbApi = { doc: p => fs.doc(p), collection: p => fs.collection(p) };
+  // 로그인한 아이디로 지점을 정하고, 그 지점 저장공간(prefix) 안에서만 읽고 씀
+  const centerOf = u => { const id = ((u && u.email) || '').split('@')[0]; return (window.CENTERS || {})[id] || null; };
+  const pre = () => ((window.CENTER || {}).prefix || '');
+  const dbApi = { doc: p => fs.doc(pre() + p), collection: p => fs.collection(pre() + p) };
   window.claude = {
     async use(name) {
-      if (name === 'db') { await ready; return dbApi; }      // 로그인한 뒤에 연결
+      if (name === 'db') {                                   // 로그인한 뒤에 연결
+        await ready; const c = centerOf(auth.currentUser);
+        if (!c) throw new Error('지점이 등록되지 않은 아이디입니다');
+        window.CENTER = c; return dbApi;
+      }
       if (name === 'user') return { can: async () => true, id: async () => (auth.currentUser || {}).uid || null };
       return null;
     },

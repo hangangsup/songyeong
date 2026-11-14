@@ -1,10 +1,15 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 허용된 계정으로 로그인한 사람만 읽고 쓸 수 있음
-    match /{document=**} {
-      allow read, write: if request.auth != null
-        && request.auth.token.email in ['supdc0301@hangangsup.app'];
+    function em() { return request.auth != null ? request.auth.token.email : ''; }
+    // 한강숲(기존 데이터): 지점 폴더(centers)를 뺀 나머지 전부
+    match /{coll}/{rest=**} {
+      allow read, write: if coll != 'centers' && em() == 'supdc0301@hangangsup.app';
+    }
+    // 더숲 / 숲: 각자 지점 폴더 안에서만
+    match /centers/{c}/{rest=**} {
+      allow read, write: if (c == 'thesup' && em() == 'supdc0801@hangangsup.app')
+                         || (c == 'sup'    && em() == 'supdc0420@hangangsup.app');
     }
   }
 }

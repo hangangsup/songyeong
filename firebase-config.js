@@ -9,6 +9,11 @@ window.FIREBASE_CONFIG = {
 };
 // Firebase에 사용자를 "supdc0301@hangangsup.app"으로 만들면 화면에서는 "supdc0301"만 입력하면 됩니다.
 window.LOGIN_EMAIL_DOMAIN = "hangangsup.app";
-// 로그인할 수 있는 아이디 목록 (firestore.rules의 이메일 목록과 같게 유지)
+// 지점별 아이디. prefix가 비어 있으면 기존(한강숲) 데이터, 아니면 그 지점 전용 저장공간을 씁니다.
 // 처음 로그인할 때 입력한 비밀번호가 그 아이디의 비밀번호가 됩니다.
-window.ALLOWED_LOGINS = ["supdc0301"];
+window.CENTERS = {
+  supdc0301: { name: "한강숲데이케어센터", short: "한강숲", prefix: "" },
+  supdc0801: { name: "더숲데이케어센터",   short: "더숲",   prefix: "centers/thesup/" },
+  supdc0420: { name: "숲데이케어센터",     short: "숲",     prefix: "centers/sup/" }
+};
+window.ALLOWED_LOGINS = Object.keys(window.CENTERS);

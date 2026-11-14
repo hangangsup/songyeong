@@ -281,7 +281,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <div id="login">
   <form class="login-box" id="loginForm" autocomplete="off">
-    <h1>한강숲데이케어센터</h1>
+    <h1 id="loginTitle">한강숲데이케어센터</h1>
     <p>송영표 관리</p>
     <label for="uid">아이디</label>
     <input id="uid" autocomplete="username">
@@ -294,7 +294,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <div id="app" hidden>
   <header><div class="hbar">
-    <h1>한강숲 송영표</h1>
+    <h1 id="appTitle">한강숲 송영표</h1>
     <nav>
       <button data-v="daily" class="on">날짜별 송영표</button>
       <button data-v="elders">어르신 목록</button>
@@ -311,7 +311,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <script>
 // ---------- 새 버전 자동 반영 (브라우저 캐시 때문에 옛 화면이 남지 않게) ----------
-const BUILD='20261110103218';
+const BUILD='20261114153754';
 async function checkUpdate(){
   if(!/^https?:/.test(location.protocol)||location.hostname.endsWith('claude.ai')||location.hostname.includes('claudeusercontent')) return;
   try{const t=await (await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'})).text();const m=/const BUILD='(\d+)'/.exec(t);
@@ -331,6 +331,7 @@ const LOGIN_ID='supdc0301', LOGIN_PW='supdc0301!';
 function getAuth(){try{return sessionStorage.getItem('sdc_auth')==='1'}catch(e){return false}}
 function setAuth(v){try{v?sessionStorage.setItem('sdc_auth','1'):sessionStorage.removeItem('sdc_auth')}catch(e){}}
 const SERVER=!!window.SDC_SERVER;   // 자체 서버 버전이면 서버가 로그인을 확인
+if(SERVER&&window.CENTERS){const t=document.getElementById('loginTitle');if(t)t.textContent='데이케어센터 송영표';const sub=t&&t.nextElementSibling;if(sub)sub.textContent='한강숲 · 더숲 · 숲 — 지점 아이디로 로그인';}
 let authed=SERVER?false:getAuth();
 document.getElementById('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
@@ -368,7 +369,12 @@ function addDays(s,n){const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);r
 function wd(s){return new Date(s+'T00:00:00').getDay()}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2200)}
-function cfg(){return config||DEFAULT_CONFIG}
+function cfg(){return config||(isOtherCenter()?{vehicles:DEFAULT_CONFIG.vehicles.map(v=>({...v,plate:''}))}:DEFAULT_CONFIG)}
+// 지점(센터): GitHub 사이트에서는 로그인한 아이디로 정해짐. 한강숲은 기존 데이터 그대로.
+function centerInfo(){return window.CENTER||{name:'한강숲데이케어센터',short:'한강숲',prefix:''}}
+function centerName(){return centerInfo().name}
+function isOtherCenter(){return !!centerInfo().prefix}
+function applyCenterName(){const c=centerInfo();const a=document.getElementById('appTitle');if(a)a.textContent=c.short+' 송영표';document.title=c.name+' 송영표'}
 function vehicles(){return cfg().vehicles||[]}
 function vehiclesFor(S){const vs=vehicles(),ord=cfg()['order'+CK(S)]||cfg()['order'+CAP[S]]||[];const r=v=>{const i=ord.indexOf(v.id);return i<0?999:i};return [...vs].sort((a,b)=>r(a)-r(b))}
 const isTime=t=>/^\d{1,2}:\d{2}$/.test(String(t||'').trim());
@@ -966,7 +972,7 @@ async function saveAsDefault(){
 }
 async function copyText(){
   const {am,pm}=computeDay(); const w=DOW[wd(curDate)];
-  let t=`[한강숲데이케어센터 송영표] ${curDate} (${w})\n`;
+  let t=`[${centerName()} 송영표] ${curDate} (${w})\n`;
   for(const [S,R,label] of [['am',am,'오전 송영'],['pm',pm,'오후 송영']]){
     t+=`\n■ ${label}\n`;
     for(const v of vehiclesFor(S)){
@@ -1442,6 +1448,7 @@ const SAT_PC={"satam": {"김운태": ["양녕로 23길 9 102-1007", "010-4606-85
 const SAT_HL={satam:{"김부남":"o","김예환":"o"},satpm:{"김부남":"o","김찬회":"o","김예환":"o","윤복실":"y","이금자":"y"}};
 let satSeeding=false;
 function maybeSeedSat(){
+  if(isOtherCenter()) return; // 토요일 기본표는 한강숲 전용
   if(satSeeding||readOnly||!db||!config||config.satSeeded===3||!eldersLoaded) return;
   satSeeding=true;
   if(config.satSeeded){ // 이미 적용된 곳: 주소·연락처·강조색·4682 오후 번호 보정
@@ -1475,6 +1482,7 @@ function maybeSeedSat(){
   if(authed) showApp();
   const timer=setTimeout(()=>{document.getElementById('conn').textContent='연결 지연 중…'},10000);
   try{ db=window.claude&&await window.claude.use('db'); }catch(e){db=null}
+  applyCenterName();
   try{ const user=window.claude&&await window.claude.use('user'); if(user&&user.can){const c=await user.can('data.write'); if(c===false) readOnly=true;} }catch(e){}
   try{ downloads=window.claude&&await window.claude.use('downloads'); }catch(e){downloads=null}
   dbState=db?'ok':'none';
