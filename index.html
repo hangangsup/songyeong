@@ -327,7 +327,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <script>
 // ---------- 새 버전 자동 반영 (브라우저 캐시 때문에 옛 화면이 남지 않게) ----------
-const BUILD='20261114155522';
+const BUILD='20261114160018';
 async function checkUpdate(){
   if(!/^https?:/.test(location.protocol)||location.hostname.endsWith('claude.ai')||location.hostname.includes('claudeusercontent')) return;
   try{const t=await (await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'})).text();const m=/const BUILD='(\d+)'/.exec(t);
@@ -339,8 +339,8 @@ setTimeout(checkUpdate,3000); setInterval(checkUpdate,60000); document.addEventL
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=20261114155522"></script>
-<script src="fb-shim.js?v=20261114155522"></script>
+<script src="firebase-config.js?v=20261114160018"></script>
+<script src="fb-shim.js?v=20261114160018"></script>
 <script>
 // ---------- 로그인 ----------
 const LOGIN_ID='supdc0301', LOGIN_PW='supdc0301!';
@@ -1382,15 +1382,22 @@ function staffTemplate(ym){
   const prevYm=(()=>{const d=new Date(Y,M-2,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`})();
   const src=staffDocs[ym]||staffDocs[prevYm]||staffDocs[Object.keys(staffDocs).sort().pop()];
   const people=src?(src.staff||[]).map(p=>[p.team||'',p.label||p.name,p.role||'']):[['요양','홍길동','요양보호사'],['','','']];
-  const aoa=[[`${Y}년 ${M}월 근무일정표`],[`${centerName()}`],['팀','이름','직책'],['','','']];
+  const aoa=[[`${Y}년 ${M}월 근무일정표`],[`${centerName()}`,'','','칸에 적는 법 ▶  O : 출근   ·   휴무 또는 X : 쉬는 날   ·   연차 : 연차   ·   반차 : 반차 (출근으로 봅니다)'],['팀','이름','직책'],['','','']];
   for(let d=1;d<=nd;d++){const ds=`${ym}-${String(d).padStart(2,'0')}`;aoa[2].push(d);aoa[3].push(DOW[wd(ds)])}
   let lastTeam='';
   for(const [t,n,r] of people){const row=[t&&t!==lastTeam?t:'',n,r];if(t)lastTeam=t;
     for(let d=1;d<=nd;d++){const w=wd(`${ym}-${String(d).padStart(2,'0')}`);row.push(n&&w>0&&w<6?'O':'')} aoa.push(row)}
   for(let i=0;i<5;i++) aoa.push(['','','']);
+  aoa.push(['']); const gr=aoa.length;
+  aoa.push(['[칸에 적는 법]']);
+  aoa.push(['O','','','출근']);
+  aoa.push(['휴무 / X','','','쉬는 날 → 그날 송영표에 "변경필요" 표시']);
+  aoa.push(['연차','','','연차 → 그날 송영표에 "변경필요" 표시']);
+  aoa.push(['반차','','','반차 (출근으로 봅니다)']);
   const ws=XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols']=[{wch:8},{wch:12},{wch:11},...Array(nd).fill({wch:4.5})];
-  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:10}}];
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:10}},{s:{r:1,c:3},e:{r:1,c:Math.min(2+nd,30)}},
+    ...[1,2,3,4].map(k=>({s:{r:gr+k,c:0},e:{r:gr+k,c:1}})),...[1,2,3,4].map(k=>({s:{r:gr+k,c:3},e:{r:gr+k,c:16}})),{s:{r:gr,c:0},e:{r:gr,c:5}}];
   const help=XLSX.utils.aoa_to_sheet([['작성 방법'],[''],['• 이름은 [이름] 칸에 한 줄에 한 명씩 적습니다. 송영표의 운전자 이름과 같게 적어 주세요.'],
     ['• 날짜 칸: O = 출근, 휴무(또는 X) = 쉬는 날, 연차 = 연차, 반차 = 반차(출근으로 봄)'],['• 엑셀에서 칸에 빨간 사선(대각선 테두리)을 그어도 휴무로 읽습니다.'],
     ['• 휴무·연차인 날은 송영표에서 그 직원 이름 대신 "변경필요"가 표시됩니다.'],['• 한 파일에 여러 달 시트(6월, 7월…)를 넣어 한 번에 올려도 됩니다. 시트 맨 위 "2026년 11월" 글자로 달을 알아봅니다.'],
