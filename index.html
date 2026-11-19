@@ -327,7 +327,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <script>
 // ---------- 새 버전 자동 반영 (브라우저 캐시 때문에 옛 화면이 남지 않게) ----------
-const BUILD='20261119134632';
+const BUILD='20261119134834';
 async function checkUpdate(){
   if(!/^https?:/.test(location.protocol)||location.hostname.endsWith('claude.ai')||location.hostname.includes('claudeusercontent')) return;
   try{const t=await (await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'})).text();const m=/const BUILD='(\d+)'/.exec(t);
@@ -339,8 +339,8 @@ setTimeout(checkUpdate,3000); setInterval(checkUpdate,60000); document.addEventL
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=20261119134632"></script>
-<script src="fb-shim.js?v=20261119134632"></script>
+<script src="firebase-config.js?v=20261119134834"></script>
+<script src="fb-shim.js?v=20261119134834"></script>
 <script>
 // ---------- 로그인 ----------
 const LOGIN_ID='supdc0301', LOGIN_PW='supdc0301!';
@@ -649,12 +649,16 @@ function itemsFor(S,R,k){
   const items=(R.lists[k]||[]).map(id=>({id,st:''}));
   const ex=new Set((dayDoc&&dayDoc.extra)||[]);
   const stOf=e=>ab.has(e.id)?'ab':(e.status==='중지'?'':(e.start&&e.start>curDate&&(e.days||[]).includes(w))?'ns':(!(e.days||[]).includes(w)&&!ex.has(e.id))?'off':'');
-  const K=SK(S);
-  const extras=eldersArr().filter(e=>e.def&&e.def[K]&&e.def[K].k===k&&!items.find(x=>x.id===e.id)&&stOf(e)).sort((a,b)=>(a.def[K].o||0)-(b.def[K].o||0));
+  const K=SK(S), prev=(dayDoc&&dayDoc.prev)||{};
+  const pvOf=id=>ab.has(id)&&prev[id]&&prev[id][S]; // 결석 누를 때 있던 자리
+  const extras=eldersArr().filter(e=>e.def&&e.def[K]&&e.def[K].k===k&&!pvOf(e.id)&&!items.find(x=>x.id===e.id)&&stOf(e)).sort((a,b)=>(a.def[K].o||0)-(b.def[K].o||0));
   for(const e of extras){
     const o=e.def[K].o; let at=items.findIndex(x=>{const xe=elders[x.id];return xe&&xe.def&&xe.def[K]&&xe.def[K].k===k&&xe.def[K].o>o});
     if(at<0) at=items.length; items.splice(at,0,{id:e.id,st:stOf(e)});
   }
+  // 결석한 어르신은 기본표 자리가 없어도, 결석 누를 때 있던 자리에 빗금으로 표시
+  const abHere=[...ab].filter(id=>elders[id]&&pvOf(id)&&prev[id][S].k===k&&!items.find(x=>x.id===id)).sort((a,b)=>prev[a][S].i-prev[b][S].i);
+  for(const id of abHere) items.splice(Math.min(prev[id][S].i,items.length),0,{id,st:'ab'});
   return items;
 }
 // 시간 글자를 분으로 (7:50, 07:50, 오후 4:10, 16:10:00 …). 시간이 아니면 null
