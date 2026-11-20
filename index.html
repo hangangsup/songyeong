@@ -11,6 +11,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 :root{
   --bg:#f4f6f3; --card:#fff; --ink:#1d2a24; --sub:#5d6b64; --line:#dfe5e0;
@@ -133,6 +135,20 @@ tr.off td{opacity:.5}
 .hint{font-size:13px;color:var(--sub);margin:0 0 12px;line-height:1.6}
 .satbox{border:1px dashed var(--line);border-radius:8px;padding:6px 8px;margin:6px 0}.satbox summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--ink)}
 .need{color:#e00;font-weight:700}
+.stg{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:14px;align-items:start}
+@media(max-width:900px){.stg{grid-template-columns:1fr}}
+#statMap{height:560px;border-radius:12px;border:1px solid var(--line);z-index:0}
+@media(max-width:760px){#statMap{height:420px}}
+.kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 16px;min-width:120px}
+.kpi b{display:block;font-size:24px;color:var(--ink)}.kpi span{font-size:12.5px;color:var(--sub)}
+.dbar{display:grid;grid-template-columns:14px 78px 1fr 70px;gap:8px;align-items:center;font-size:13.5px;padding:4px 0;cursor:pointer}
+.dbar i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.dbar .tr{background:#eef1ee;border-radius:6px;height:16px;overflow:hidden}.dbar .tr div{height:100%;border-radius:6px}
+.dbar .pc{text-align:right;color:var(--sub)}.dbar.on{background:#f3f8f4;border-radius:6px}
+.gpin{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.gpin.ap{opacity:.55;border-style:dashed}
+.mlbl{background:rgba(255,255,255,.9);border:0;box-shadow:none;font-size:11px;padding:0 3px;color:#222}
 .stt td.stc{cursor:pointer}.stt td.stc:hover{box-shadow:inset 0 0 0 2px #2a62c9}
 .stopts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .stopts button{padding:9px 0;font-size:14px;border-radius:8px}
@@ -314,6 +330,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
     <nav>
       <button data-v="daily" class="on">날짜별 송영표</button>
       <button data-v="elders">어르신 목록</button>
+      <button data-v="stats">통계지도</button>
       <button data-v="cars">차량·시간 설정</button>
       <button data-v="staff">직원출근표</button>
     </nav>
@@ -327,7 +344,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <script>
 // ---------- 새 버전 자동 반영 (브라우저 캐시 때문에 옛 화면이 남지 않게) ----------
-const BUILD='20261119134834';
+const BUILD='20261120112434';
 async function checkUpdate(){
   if(!/^https?:/.test(location.protocol)||location.hostname.endsWith('claude.ai')||location.hostname.includes('claudeusercontent')) return;
   try{const t=await (await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'})).text();const m=/const BUILD='(\d+)'/.exec(t);
@@ -339,8 +356,8 @@ setTimeout(checkUpdate,3000); setInterval(checkUpdate,60000); document.addEventL
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=20261119134834"></script>
-<script src="fb-shim.js?v=20261119134834"></script>
+<script src="firebase-config.js?v=20261120112434"></script>
+<script src="fb-shim.js?v=20261120112434"></script>
 <script>
 // ---------- 로그인 ----------
 const LOGIN_ID='supdc0301', LOGIN_PW='supdc0301!';
@@ -1441,6 +1458,95 @@ function bindStaff(){
     if(!armed){armed=true;del.textContent='한 번 더 누르면 삭제';setTimeout(()=>{armed=false;render()},3000);return}
     const ym=staffYm; delete staffDocs[ym]; staffYm=''; try{await db.doc('staff/'+ym).delete()}catch(e){} render()}}
 }
+
+// ---------- 통계지도 (어르신 위치·동별 비율) ----------
+const DCOL=['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#42d4f4','#f032e6','#9a6324','#469990','#800000','#808000','#000075','#bfef45','#fabed4','#a9a9a9'];
+let statMap=null, statView=null, geoRun=false, statFilter={day:'all',dong:''}, geoProg='';
+function guOf(a){const m=/([가-힣]+구)(?=\s|$)/.exec(a||'');return m?m[1]:''}
+function dongOf(e){if(e.area&&e.area.trim())return e.area.trim();const m=/\(([가-힣0-9]+동)/.exec(e.address||'');return m?m[1]:'미상'}
+function geoQueries(e){
+  const a=(e.address||'').replace(/\(.*$/,'').replace(/\s+/g,' ').trim(); if(!a) return [];
+  const pre=/^(서울|경기|인천)/.test(a)?'':'서울특별시 ', q=[pre+a];
+  const st=a.replace(/\s+\d+(-\d+)?$/,''); if(st!==a) q.push(pre+st);
+  const d=dongOf(e); if(d!=='미상') q.push((pre+guOf(a)+' '+d.replace(/\d+동$/,'동')).replace(/\s+/g,' '));
+  return q;
+}
+async function nomi(q){const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=kr&accept-language=ko&q='+encodeURIComponent(q));
+  if(!r.ok) throw new Error('위치 찾기 서버 응답 오류'); const j=await r.json(); return j[0]?{lat:+j[0].lat,lng:+j[0].lon}:null}
+function statElders(){const w=statFilter.day;return eldersArr().filter(e=>e.status!=='중지'&&(w==='all'||(e.days||[]).includes(+w)))}
+async function geocodeMissing(){
+  if(geoRun||readOnly) return; geoRun=true;
+  try{
+    const todo=eldersArr().filter(e=>e.status!=='중지'&&e.address&&!(e.geo&&e.geo.addr===e.address));
+    let n=0;
+    for(const e of todo){
+      n++; geoProg=`위치 찾는 중… ${n}/${todo.length}`; const pg=document.getElementById('geoProg'); if(pg) pg.textContent=geoProg;
+      let g=null; const qs=geoQueries(e);
+      for(let i=0;i<qs.length&&!g;i++){await new Promise(r=>setTimeout(r,1100)); try{const r=await nomi(qs[i]); if(r) g={...r,approx:i>0}}catch(err){}}
+      const geo=g?{...g,addr:e.address}:{fail:true,addr:e.address};
+      if(elders[e.id]) {elders[e.id]={...elders[e.id],geo}; saveElder(e.id,{geo})}
+      if(view==='stats') updateStatMarkers();
+    }
+  }finally{geoRun=false; geoProg=''; if(view==='stats') render()}
+}
+function dongStats(list){const m={};for(const e of list){const d=dongOf(e);m[d]=(m[d]||0)+1}
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))}
+function renderStats(){
+  const all=statElders(), ds=dongStats(all), tot=all.length||1;
+  const col={}; ds.forEach(([d],i)=>col[d]=DCOL[i%DCOL.length]);
+  const located=all.filter(e=>e.geo&&!e.geo.fail).length, failed=all.filter(e=>e.geo&&e.geo.fail);
+  const gus={}; all.forEach(e=>{const g=guOf(e.address)||'기타';gus[g]=(gus[g]||0)+1});
+  let h=`<div class="toolbar"><div class="seg">${[['all','전체'],['1','월'],['2','화'],['3','수'],['4','목'],['5','금'],['6','토']].map(([v,l])=>`<button data-sday="${v}" class="${statFilter.day===v?'on':''}">${l}</button>`).join('')}</div>
+    <span class="meta" id="geoProg">${esc(geoProg)}</span>${statFilter.dong?`<button id="sdClr">${esc(statFilter.dong)} 선택 해제</button>`:''}</div>
+  <div class="kpis"><div class="kpi"><b>${all.length}명</b><span>${statFilter.day==='all'?'이용 어르신 전체':DOW[+statFilter.day]+'요일 이용 어르신'}</span></div>
+    <div class="kpi"><b>${ds.length}곳</b><span>동(지역) 수</span></div>
+    <div class="kpi"><b>${esc(ds[0]?ds[0][0]:'-')}</b><span>가장 많은 동 ${ds[0]?ds[0][1]+'명 ('+Math.round(ds[0][1]/tot*100)+'%)':''}</span></div>
+    <div class="kpi"><b>${located}/${all.length}</b><span>지도에 표시된 어르신</span></div></div>
+  <div class="stg"><div><div id="statMap"></div>
+    <p class="hint">점을 누르면 이름·주소가 나옵니다. 위치가 틀리면 점을 <b>끌어서 옮기면</b> 저장됩니다. 흐린 점선 점은 정확한 주소를 못 찾아 동 중심에 놓은 대략 위치입니다.</p>
+    ${failed.length?`<p class="hint" style="color:#b36b00">위치를 못 찾은 어르신: ${failed.map(e=>esc(e.name)).join(', ')} — 어르신 목록에서 주소를 도로명주소로 고치면 다시 찾습니다.</p>`:''}</div>
+  <div><div class="upbox" style="margin:0 0 12px"><h3 style="margin-bottom:8px">동별 인원·비율</h3>
+    ${ds.map(([d,c])=>`<div class="dbar ${statFilter.dong===d?'on':''}" data-dong="${esc(d)}"><i style="background:${col[d]}"></i><span>${esc(d)}</span><div class="tr"><div style="width:${Math.max(3,c/ds[0][1]*100)}%;background:${col[d]}"></div></div><span class="pc"><b>${c}명</b> ${Math.round(c/tot*1000)/10}%</span></div>`).join('')||'<i class="meta">어르신이 없습니다</i>'}</div>
+    <div class="upbox" style="margin:0"><h3 style="margin-bottom:8px">구별</h3>
+    ${Object.entries(gus).sort((a,b)=>b[1]-a[1]).map(([g,c])=>`<div class="dbar" style="cursor:default"><i style="background:#1f6b4f"></i><span>${esc(g)}</span><div class="tr"><div style="width:${c/tot*100}%;background:#1f6b4f"></div></div><span class="pc"><b>${c}명</b> ${Math.round(c/tot*1000)/10}%</span></div>`).join('')}</div>
+    ${statFilter.dong?`<div class="upbox" style="margin:12px 0 0"><h3 style="margin-bottom:6px">${esc(statFilter.dong)} 어르신</h3>${all.filter(e=>dongOf(e)===statFilter.dong).map(e=>`<div style="font-size:13.5px;padding:3px 0"><b>${esc(e.name)}</b> <span class="meta">${esc(e.place||e.address||'')}</span></div>`).join('')}</div>`:''}
+  </div></div>`;
+  window.__statCol=col;
+  return h;
+}
+let statLayer=null;
+function updateStatMarkers(){
+  if(!statMap||!window.L) return; const col=window.__statCol||{};
+  if(statLayer) statLayer.remove(); statLayer=L.layerGroup().addTo(statMap);
+  const pts=[];
+  for(const e of statElders()){
+    if(!e.geo||e.geo.fail) continue; const d=dongOf(e); if(statFilter.dong&&d!==statFilter.dong) continue;
+    const icon=L.divIcon({className:'',html:`<div class="gpin ${e.geo.approx&&!e.geo.manual?'ap':''}" style="background:${col[d]||'#666'}"></div>`,iconSize:[16,16],iconAnchor:[8,8]});
+    const m=L.marker([e.geo.lat,e.geo.lng],{icon,draggable:!readOnly,title:e.name}).addTo(statLayer);
+    m.bindTooltip(esc(e.name),{direction:'top',offset:[0,-8],className:'mlbl'});
+    const dd=(e.def&&e.def.am&&keyLabel('am',e.def.am.k))||'';
+    m.bindPopup(`<b>${esc(e.name)}</b> <span style="color:#666">${esc(d)}</span><br>${esc(e.address||'')}<br><span style="color:#666">${esc(daysLabel(e.days)||'')}${dd?' · 오전 '+esc(dd):''}</span>${e.geo.approx&&!e.geo.manual?'<br><span style="color:#b36b00">대략 위치(동 중심) — 끌어서 정확히 옮겨 주세요</span>':''}`);
+    m.on('dragend',()=>{const p=m.getLatLng();const geo={lat:p.lat,lng:p.lng,addr:e.address,manual:true};elders[e.id]={...elders[e.id],geo};saveElder(e.id,{geo});toast(`${e.name} 위치를 저장했습니다`)});
+    pts.push([e.geo.lat,e.geo.lng]);
+  }
+  return pts;
+}
+function bindStats(){
+  document.querySelectorAll('[data-sday]').forEach(b=>b.onclick=()=>{statFilter.day=b.dataset.sday;render()});
+  document.querySelectorAll('[data-dong]').forEach(b=>b.onclick=()=>{statFilter.dong=statFilter.dong===b.dataset.dong?'':b.dataset.dong;statView=null;render()});
+  const c=document.getElementById('sdClr'); if(c) c.onclick=()=>{statFilter.dong='';statView=null;render()};
+  const el=document.getElementById('statMap'); if(!el) return;
+  if(!window.L){el.innerHTML='<div class="banner" style="margin:20px">지도 도구를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요.</div>';return}
+  if(statMap){statView={c:statMap.getCenter(),z:statMap.getZoom()};statMap.remove();statMap=null}
+  statMap=L.map(el,{scrollWheelZoom:true}); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(statMap);
+  statMap.on('moveend',()=>{statView={c:statMap.getCenter(),z:statMap.getZoom()}});
+  const pts=updateStatMarkers()||[];
+  if(statView) statMap.setView(statView.c,statView.z);
+  else if(pts.length) statMap.fitBounds(pts,{padding:[30,30],maxZoom:16});
+  else statMap.setView([37.505,126.95],13);
+  setTimeout(()=>statMap&&statMap.invalidateSize(),50);
+  if(!geoRun&&statElders().some(e=>e.address&&!(e.geo&&e.geo.addr===e.address))) geocodeMissing();
+}
 // ---------- 렌더 ----------
 function render(){
   if(!authed) return;
@@ -1450,6 +1556,7 @@ function render(){
   if(!Object.keys(elders).length&&view!=='cars'&&view!=='staff'){el.innerHTML=`<div class="banner">${dbState==='pending'||!eldersLoaded?'어르신 목록을 불러오는 중…':'등록된 어르신이 없습니다. <b>차량·시간 설정 → 백업 가져오기</b>로 데이터를 넣거나, 어르신 목록에서 엑셀을 올려 주세요.'}</div>`+(eldersLoaded&&view==='elders'?renderElders():'');if(eldersLoaded&&view==='elders')bindElders();return}
   if(view==='daily'){el.innerHTML=renderDaily();bindDaily();fitText();fitSheetMobile()}
   else if(view==='elders'){el.innerHTML=renderElders();bindElders()}
+  else if(view==='stats'){el.innerHTML=renderStats();bindStats()}
   else if(view==='staff'){el.innerHTML=renderStaff();bindStaff()}
   else {el.innerHTML=renderCars();bindCars()}
 }
@@ -1458,6 +1565,7 @@ window.addEventListener('resize',()=>{if(view==='daily')fitSheetMobile()});
 function fitText(){document.querySelectorAll('.bx .p').forEach(p=>{let f=10.5;p.style.fontSize=f+'px';while(p.scrollWidth>p.clientWidth+1&&f>7){f-=0.5;p.style.fontSize=f+'px'}})}
 function softRender(){ // 입력 중이면 다시 그리지 않음
   if(document.getElementById('pop')) return;
+  if(view==='stats'&&(geoRun||document.querySelector('.leaflet-popup'))) return; // 지도 보는 중엔 깜빡이지 않게
   const a=document.activeElement;
   if(a&&document.getElementById('view').contains(a)&&/INPUT|TEXTAREA/.test(a.tagName)) return;
   render();
@@ -1548,7 +1656,7 @@ function maybeSeedSat(){
   save('config/main',config); render(); toast('토요일 기본표를 적용했습니다');
 }
 (async()=>{
-  const h=(location.hash||'').slice(1); if(['daily','elders','cars','staff'].includes(h)) view=h;
+  const h=(location.hash||'').slice(1); if(['daily','elders','stats','cars','staff'].includes(h)) view=h;
   if(SERVER&&await window.SDC.me()) authed=true;
   if(authed) showApp();
   const timer=setTimeout(()=>{document.getElementById('conn').textContent='연결 지연 중…'},10000);
