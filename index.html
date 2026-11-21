@@ -344,7 +344,7 @@ button.del{color:var(--warn);border-color:#f0c3bd;padding:3px 8px;font-size:12.5
 
 <script>
 // ---------- 새 버전 자동 반영 (브라우저 캐시 때문에 옛 화면이 남지 않게) ----------
-const BUILD='20261120112434';
+const BUILD='20261121100906';
 async function checkUpdate(){
   if(!/^https?:/.test(location.protocol)||location.hostname.endsWith('claude.ai')||location.hostname.includes('claudeusercontent')) return;
   try{const t=await (await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'})).text();const m=/const BUILD='(\d+)'/.exec(t);
@@ -356,8 +356,8 @@ setTimeout(checkUpdate,3000); setInterval(checkUpdate,60000); document.addEventL
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=20261120112434"></script>
-<script src="fb-shim.js?v=20261120112434"></script>
+<script src="firebase-config.js?v=20261121100906"></script>
+<script src="fb-shim.js?v=20261121100906"></script>
 <script>
 // ---------- 로그인 ----------
 const LOGIN_ID='supdc0301', LOGIN_PW='supdc0301!';
@@ -568,6 +568,7 @@ function commitDay(mut){
     times:JSON.parse(JSON.stringify((dayDoc&&dayDoc.times)||{am:{},pm:{}})),
     hl:JSON.parse(JSON.stringify((dayDoc&&dayDoc.hl)||{am:[],pm:[]})),
     prev:JSON.parse(JSON.stringify((dayDoc&&dayDoc.prev)||{})),
+    abDown:[...((dayDoc&&dayDoc.abDown)||[])],
   };
   next.times.am=next.times.am||{};next.times.pm=next.times.pm||{};next.hl.am=next.hl.am||[];next.hl.pm=next.hl.pm||[];
   mut(next);
@@ -583,7 +584,7 @@ function markAbsent(n,id){
 }
 // 출석으로: 기억한 자리 → 없으면 기본표 자리로 되돌림
 function unAbsent(n,id){
-  n.absent=n.absent.filter(x=>x!==id); const pv=(n.prev&&n.prev[id])||{}, e=elders[id]||{};
+  n.absent=n.absent.filter(x=>x!==id); if(n.abDown) n.abDown=n.abDown.filter(x=>x!==id); const pv=(n.prev&&n.prev[id])||{}, e=elders[id]||{};
   for(const S of ['am','pm']){
     let k=pv[S]&&pv[S].k, i=pv[S]?pv[S].i:null;
     const K=SK(S);
@@ -666,15 +667,17 @@ function itemsFor(S,R,k){
   const items=(R.lists[k]||[]).map(id=>({id,st:''}));
   const ex=new Set((dayDoc&&dayDoc.extra)||[]);
   const stOf=e=>ab.has(e.id)?'ab':(e.status==='중지'?'':(e.start&&e.start>curDate&&(e.days||[]).includes(w))?'ns':(!(e.days||[]).includes(w)&&!ex.has(e.id))?'off':'');
-  const K=SK(S), prev=(dayDoc&&dayDoc.prev)||{};
+  const K=SK(S), prev=(dayDoc&&dayDoc.prev)||{}, down=new Set((dayDoc&&dayDoc.abDown)||[]);
   const pvOf=id=>ab.has(id)&&prev[id]&&prev[id][S]; // 결석 누를 때 있던 자리
-  const extras=eldersArr().filter(e=>e.def&&e.def[K]&&e.def[K].k===k&&!pvOf(e.id)&&!items.find(x=>x.id===e.id)&&stOf(e)).sort((a,b)=>(a.def[K].o||0)-(b.def[K].o||0));
+  const extras=eldersArr().filter(e=>e.def&&e.def[K]&&e.def[K].k===k&&!down.has(e.id)&&!pvOf(e.id)&&!items.find(x=>x.id===e.id)&&stOf(e)).sort((a,b)=>(a.def[K].o||0)-(b.def[K].o||0));
   for(const e of extras){
     const o=e.def[K].o; let at=items.findIndex(x=>{const xe=elders[x.id];return xe&&xe.def&&xe.def[K]&&xe.def[K].k===k&&xe.def[K].o>o});
     if(at<0) at=items.length; items.splice(at,0,{id:e.id,st:stOf(e)});
   }
   // 결석한 어르신은 기본표 자리가 없어도, 결석 누를 때 있던 자리에 빗금으로 표시
-  const abHere=[...ab].filter(id=>elders[id]&&pvOf(id)&&prev[id][S].k===k&&!items.find(x=>x.id===id)).sort((a,b)=>prev[a][S].i-prev[b][S].i);
+  // 결석 누른 순서의 반대로 되넣으면 원래 순서가 그대로 복원됨
+  const abOrd=[...ab];
+  const abHere=abOrd.filter(id=>elders[id]&&!down.has(id)&&pvOf(id)&&prev[id][S].k===k&&!items.find(x=>x.id===id)).reverse();
   for(const id of abHere) items.splice(Math.min(prev[id][S].i,items.length),0,{id,st:'ab'});
   return items;
 }
@@ -723,6 +726,8 @@ function renderSheet(R,att){
     }
   }
   if(R.unassigned.length) h+=`<div class="sh-un"><h4>미배정 ${R.unassigned.length}명 — 눌러서 차량을 정해 주세요 (출력물에는 안 나옵니다)</h4><div class="sh-boxes">${R.unassigned.map(id=>boxHtml(id,'','__un')).join('')}</div></div>`;
+  const downAb=((dayDoc&&dayDoc.abDown)||[]).filter(id=>elders[id]&&((dayDoc&&dayDoc.absent)||[]).includes(id));
+  if(downAb.length) h+=`<div class="sh-un" style="border-color:#999"><h4 style="color:#666">결석 ${downAb.length}명 (표에서 뺌) — 눌러서 빗금 표시로 바꾸거나 출석으로 되돌릴 수 있습니다 (출력물에는 안 나옵니다)</h4><div class="sh-boxes">${downAb.map(id=>boxHtml(id,'ab','__un')).join('')}</div></div>`;
   h+=`</div>`;
   return h;
 }
@@ -741,7 +746,8 @@ function openPop(bx){
   const keys=runKeys(S);
   const p=document.createElement('div'); p.id='pop';
   let h=`<h4>${esc(e.name)} <span class="meta">${esc(e.area||'')}</span></h4>`;
-  if(st==='ab') h+=`<p class="hint">오늘 결석으로 표시돼 있어요.</p><div class="btns"><button class="primary" data-a="unab">출석으로 되돌리기</button><button data-a="x">닫기</button></div>`;
+  if(st==='ab'){const dn=((dayDoc&&dayDoc.abDown)||[]).includes(id);
+    h+=`<p class="hint">오늘 결석으로 표시돼 있어요. (${dn?'표에서 빼서 아래 결석 칸에 있음':'제자리에 빗금으로 표시 중'})</p><div class="btns"><button class="primary" data-a="unab">출석으로 되돌리기</button>${dn?'<button data-a="abup">빗금으로 표시</button>':'<button data-a="abdn">표에서 빼기(아래로)</button>'}<button data-a="x">닫기</button></div>`;}
   else if(st==='off') h+=`<p class="hint">${DOW[wd(curDate)]}요일은 이용 요일이 아니라 결석으로 표시돼요. (이용 요일: ${esc((e.days||[]).map(d=>DOW[d]).join(''))})</p><div class="btns"><button class="primary" data-a="extra">오늘만 출석</button><button data-a="x">닫기</button></div>`;
   else if(st==='ns') h+=`<p class="hint">첫 이용일(${esc(e.start)}) 전이라 흐리게 표시됩니다.</p><div class="btns"><button data-a="x">닫기</button></div>`;
   else h+=`<div class="r"><label>시간</label><input id="pT" value="${esc(timeOf(S,id))}" placeholder="18:20"></div>
@@ -750,7 +756,8 @@ function openPop(bx){
     <div class="r"><label>주소</label><input id="pP" value="${esc((e.def&&e.def[SK(S)]&&e.def[SK(S)].p)||e.place||e.address||'')}"></div>
     <div class="r"><label>연락처</label><input id="pC" value="${esc((e.def&&e.def[SK(S)]&&e.def[SK(S)].c)||e.contact||'')}"></div>
     <div class="r"><label>차량</label><select id="pK">${keys.map(x=>`<option value="${x}" ${x===k?'selected':''}>${esc(keyLabel(S,x))}</option>`).join('')}<option value="__un" ${k==='__un'?'selected':''}>미배정</option></select></div>
-    <div class="btns">${k!=='__un'?`<button data-a="l">◀ 앞으로</button><button data-a="r">뒤로 ▶</button>`:''}<button data-a="ab" style="color:var(--warn)">결석 처리</button><button data-a="x">닫기</button></div>`;
+    <div class="btns">${k!=='__un'?`<button data-a="l">◀ 앞으로</button><button data-a="r">뒤로 ▶</button>`:''}<button data-a="x">닫기</button></div>
+    <div class="btns" style="margin-top:6px"><span class="meta" style="align-self:center">결석:</span><button data-a="ab" style="color:var(--warn)">빗금 긋기</button><button data-a="abd" style="color:var(--warn)">표에서 빼기(아래로)</button></div>`;
   p.innerHTML=h; document.body.appendChild(p);
   const r=bx.getBoundingClientRect(); const pw=300, ph=p.offsetHeight||300;
   let left=Math.min(window.innerWidth-pw-10,Math.max(10,r.left)); let top=r.bottom+8; if(top+ph>window.innerHeight) top=Math.max(10,r.top-ph-8);
@@ -761,7 +768,10 @@ function openPop(bx){
     if(a==='x') return closePop();
     if(a==='unab'){closePop();return commitDay(n=>unAbsent(n,id))}
     if(a==='extra'){closePop();return commitDay(n=>{if(!n.extra.includes(id))n.extra.push(id);unAbsent(n,id)})}
-    if(a==='ab'){closePop();return commitDay(n=>markAbsent(n,id))}
+    if(a==='ab'){closePop();return commitDay(n=>{markAbsent(n,id);n.abDown=n.abDown.filter(x=>x!==id)})}
+    if(a==='abd'){closePop();return commitDay(n=>{markAbsent(n,id);if(!n.abDown.includes(id))n.abDown.push(id)})}
+    if(a==='abdn'){closePop();return commitDay(n=>{if(!n.abDown.includes(id))n.abDown.push(id)})}
+    if(a==='abup'){closePop();return commitDay(n=>{n.abDown=n.abDown.filter(x=>x!==id)})}
     if(a==='l'||a==='r'){const d=a==='l'?-1:1;commitDay(n=>{const L=n[S][k];const i=L.indexOf(id),j=i+d;if(i<0||j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]]});
       const nb=document.querySelector(`[data-bx="${id}"]`); if(nb) openPop(nb);}
   });
